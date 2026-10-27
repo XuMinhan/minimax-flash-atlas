@@ -3,7 +3,7 @@ export type Tone = "norm" | "projection" | "attention" | "index" | "moe" | "visi
 export type Weight = {
   key: string;
   shape: string;
-  dtype: "BF16" | "F32";
+  dtype: string;
   shard: string;
   runtime?: string;
   note?: string;

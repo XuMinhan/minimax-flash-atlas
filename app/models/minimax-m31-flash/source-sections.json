@@ -1,0 +1,307 @@
+{
+  "norm": [
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "Gemma RMSNorm：实际 forward",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L130–142",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L130-L142",
+      "code": "    def forward(\n        self,\n        x: torch.Tensor,\n        residual: torch.Tensor | None = None,\n    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:\n        from flashinfer.norm import gemma_fused_add_rmsnorm, gemma_rmsnorm\n\n        if residual is None:\n            return gemma_rmsnorm(x, self.weight, self.variance_epsilon)\n\n        # gemma_fused_add_rmsnorm mutates x and residual in place.\n        gemma_fused_add_rmsnorm(x, residual, self.weight, self.variance_epsilon)\n        return x, residual"
+    },
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "CUDA：1 + weight 的逐头归一化",
+      "location": "csrc/libtorch_stable/fused_minimax_m3_qknorm_rope_kv_insert_kernel.cu · L124–147",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/csrc/libtorch_stable/fused_minimax_m3_qknorm_rope_kv_insert_kernel.cu#L124-L147",
+      "code": "// Gemma RMSNorm over the full head (no-op when ``weight == nullptr``), rounded\n// back to scalar_t like the materialized unfused norm output, followed by\n// partial NeoX RoPE on the leading ``rotary_dim`` dims. Each lane owns\n// ``kElemsPerLane`` contiguous dims [laneId*4, laneId*4+4).\ntemplate <typename scalar_t>\n__device__ __forceinline__ void normAndRope(\n    float (&elems)[kElemsPerLane], int const laneId, float const eps,\n    scalar_t const* __restrict__ weight,  // [kHeadDim] or nullptr (no norm)\n    bool const do_rope, int const rotary_dim,\n    scalar_t const* __restrict__ cos_ptr,  // cos_sin_cache + pos*rotary_dim\n    bool const apply_norm) {\n  // ── Gemma RMSNorm: x * rsqrt(mean(x^2)+eps) * (1 + w) ──────────────────\n  if (apply_norm) {\n    float sumsq = 0.0f;\n#pragma unroll\n    for (int i = 0; i < kElemsPerLane; i++) sumsq += elems[i] * elems[i];\n    sumsq = warpReduceSum(sumsq);\n    float const rms_rcp = rsqrtf(sumsq / static_cast<float>(kHeadDim) + eps);\n#pragma unroll\n    for (int i = 0; i < kElemsPerLane; i++) {\n      int const dim = laneId * kElemsPerLane + i;\n      float const w = 1.0f + static_cast<float>(weight[dim]);\n      elems[i] = elems[i] * rms_rcp * w;\n    }"
+    }
+  ],
+  "residual": [
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "Decoder：残差创建、post-norm 与延迟合并",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L754–790",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L754-L790",
+      "code": "    def forward(\n        self,\n        positions: torch.Tensor,\n        hidden_states: torch.Tensor,\n        residual: torch.Tensor | None,\n    ) -> tuple[torch.Tensor, torch.Tensor]:\n        if self.fuse_input_allreduce and residual is not None:\n            hidden_states, residual = fused_allreduce_gemma_rms_norm(\n                hidden_states, residual, self.input_layernorm\n            )\n        else:\n            if residual is None:\n                residual = hidden_states\n                hidden_states = self.input_layernorm(hidden_states)\n            else:\n                hidden_states, residual = self.input_layernorm(hidden_states, residual)\n        hidden_states = self.self_attn(\n            positions=positions,\n            hidden_states=hidden_states,\n        )\n\n        hidden_states, residual = fused_allreduce_gemma_rms_norm(\n            hidden_states, residual, self.post_attention_layernorm\n        )\n        ffn = self.block_sparse_moe if self.is_moe_layer else self.mlp\n        hidden_states = ffn(hidden_states)\n        return hidden_states, residual\n\n    @property\n    def ffn_all_reduce_deferred(self) -> bool:\n        \"\"\"This layer's FFN output is left un-reduced; the caller fuses the\n        all-reduce into the next RMSNorm.\"\"\"\n        if self.is_moe_layer:\n            return self.block_sparse_moe.experts.moe_config.skip_final_all_reduce\n        return not self.mlp.down_proj.reduce_results\n\n"
+    },
+    {
+      "stage": "源码",
+      "title": "FFN reduce_results：PP=1 延迟，PP>1/MTP 归并",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L720–744",
+      "code": "        # Dense layers store the FFN under `mlp`; MoE layers under\n        # `block_sparse_moe` -- matching the checkpoint's naming.\n        # Leave the FFN output un-reduced so its all-reduce fuses into the\n        # next RMSNorm. MTP blocks add the residual directly and PP sends\n        # hidden states across stages, so both must reduce.\n        reduce_results = (\n            is_mtp_block or vllm_config.parallel_config.pipeline_parallel_size > 1\n        )\n        self.is_moe_layer = force_moe or _is_moe_layer(config, layer_id)\n        if self.is_moe_layer:\n            self.block_sparse_moe = MiniMaxM3MoE(\n                config=config,\n                layer_id=layer_id,\n                quant_config=quant_config,\n                reduce_results=reduce_results,\n                prefix=f\"{prefix}.block_sparse_moe\",\n            )\n        else:\n            self.mlp = MiniMaxM3MLP(\n                config=config,\n                intermediate_size=config.dense_intermediate_size,\n                quant_config=quant_config,\n                prefix=f\"{prefix}.mlp\",\n                reduce_results=reduce_results,\n            )",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L720-L744"
+    },
+    {
+      "stage": "源码",
+      "title": "FFN 是否延迟 all-reduce 的实际属性",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L782–790",
+      "code": "    @property\n    def ffn_all_reduce_deferred(self) -> bool:\n        \"\"\"This layer's FFN output is left un-reduced; the caller fuses the\n        all-reduce into the next RMSNorm.\"\"\"\n        if self.is_moe_layer:\n            return self.block_sparse_moe.experts.moe_config.skip_final_all_reduce\n        return not self.mlp.down_proj.reduce_results\n\n",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L782-L790"
+    },
+    {
+      "stage": "源码",
+      "title": "下一 input norm / final norm 接收延迟归并",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L853–860",
+      "code": "        # Configure cross-layer all-reduce/RMSNorm fusion: a layer whose FFN output\n        # is left un-reduced has that all-reduce fused into the next layer's\n        # input_layernorm (or the final norm).\n        prev_defers = False\n        for idx, layer in enumerate(self.layers[self.start_layer : self.end_layer]):\n            layer.fuse_input_allreduce = idx > 0 and prev_defers\n            prev_defers = layer.ffn_all_reduce_deferred\n        self.fuse_final_norm_allreduce = prev_defers",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L853-L860"
+    }
+  ],
+  "projection": [
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "五路投影：TP 切分与共享 Index K",
+      "location": "vllm/model_executor/layers/linear.py · L1396–1431",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/model_executor/layers/linear.py#L1396-L1431",
+      "code": "        tp_size = get_tensor_model_parallel_world_size()\n        self.num_heads = divide(self.total_num_heads, tp_size)\n        if tp_size >= self.total_num_kv_heads:\n            self.num_kv_heads = 1\n            self.num_kv_head_replicas = divide(tp_size, self.total_num_kv_heads)\n        else:\n            self.num_kv_heads = divide(self.total_num_kv_heads, tp_size)\n            self.num_kv_head_replicas = 1\n        # index_q shards identically to the KV heads.\n        self.num_index_heads = self.num_kv_heads\n\n        # Global per-group sizes (replicated groups counted x tp_size, matching\n        # the QKVParallelLinear convention). index_k is a single replicated head.\n        q = self.num_heads * self.head_size\n        kv = self.num_kv_heads * self.head_size\n        iq = self.num_index_heads * self.index_head_size\n        ik = self.index_head_size\n        self.output_sizes = [\n            q * tp_size,  # q\n            kv * tp_size,  # k\n            kv * tp_size,  # v\n            iq * tp_size,  # index_q\n            ik * tp_size,  # index_k (replicated)\n        ]\n\n        # Skip QKVParallelLinear.__init__ (3-group layout); build the 5-group\n        # column-parallel weight directly.\n        ColumnParallelLinear.__init__(\n            self,\n            input_size=self.hidden_size,\n            output_size=sum(self.output_sizes),\n            bias=bias,\n            gather_output=False,\n            quant_config=quant_config,\n            prefix=prefix,\n        )"
+    },
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "SparseAttention：一次 fused projection",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L576–597",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L576-L597",
+      "code": "    def forward(\n        self,\n        positions: torch.Tensor,\n        hidden_states: torch.Tensor,\n    ) -> torch.Tensor:\n        # Single fused projection emitting [q | k | v | index_q | index_k].\n        qkv, _ = self.qkv_proj(hidden_states)\n\n        # Horizontally-fused per-head Gemma QK-norm + partial NeoX RoPE on the\n        # main (q/k) and index (index_q/index_k) branches, all read straight out\n        # of the single fused ``qkv`` tensor (the \"5 results\").  Once the paged\n        # caches are bound the kernel also inserts k/v and the index key into\n        # them; the initial memory-profiling run (caches unbound, no slot_mapping)\n        # short-circuits to zeros below. k/v and index_k are rewritten in place\n        # inside qkv (and scatter-inserted into the caches); q and index_q are\n        # de-interleaved\n        # straight into the dedicated contiguous ``q``/``index_q`` buffers below.\n\n        cos_sin_cache = self.rotary_emb.cos_sin_cache\n        rotary_dim = self.rotary_emb.rotary_dim\n        eps = self.q_norm.variance_epsilon\n        num_tokens = qkv.shape[0]"
+    },
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "权重装载：checkpoint 五路矩阵并入 qkv_proj",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L918–938",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L918-L938",
+      "code": "        # q/k/v_proj -> fused qkv_proj; gate_proj/up_proj -> fused gate_up_proj\n        # (dense MLP and shared expert). On sparse layers the indexer\n        # index_q/index_k_proj fold into the same fused qkv_proj\n        # (MinimaxM3QKVParallelLinearWithIndexer); these entries simply never match on\n        # dense layers, whose checkpoints have no index_*_proj weights. Leading\n        # dots keep `q_proj`/`k_proj` from matching `index_q_proj`/`index_k_proj`\n        # (preceded by `_`, not `.`).\n        stacked_params_mapping: list[tuple[str, str, int | str]] = [\n            # (param_name, shard_name, shard_id)\n            (\".qkv_proj\", \".q_proj\", \"q\"),\n            (\".qkv_proj\", \".k_proj\", \"k\"),\n            (\".qkv_proj\", \".v_proj\", \"v\"),\n            (\".qkv_proj\", \".index_q_proj\", \"index_q\"),\n            (\".qkv_proj\", \".index_k_proj\", \"index_k\"),\n            (\".gate_up_proj\", \".gate_proj\", 0),\n            (\".gate_up_proj\", \".up_proj\", 1),\n        ]\n\n        # (param_name, weight_name, expert_id, shard_id)\n        expert_params_mapping = self.get_expert_mapping()\n"
+    }
+  ],
+  "preparation": [
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "主与 Index 分支 Norm、RoPE 的融合调用",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L615–640",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L615-L640",
+      "code": "            dtype=self.indexer.index_cache.dtype,\n        )\n        ops.fused_minimax_m3_qknorm_rope_kv_insert(\n            qkv,\n            self.q_norm.weight,\n            self.k_norm.weight,\n            cos_sin_cache,\n            positions,\n            self.num_heads,\n            self.num_kv_heads,\n            rotary_dim,\n            eps,\n            self.index_q_norm.weight,\n            self.index_k_norm.weight,\n            self.num_idx_heads,\n            main_slot_mapping,\n            index_slot_mapping,\n            self.kv_cache,\n            self.indexer.index_cache.kv_cache,\n            self.kv_cache.size(2),  # paged-cache block size\n            q,\n            index_q,\n            self.kv_cache_dtype,\n            q_fp8_out=query_fp8,\n            q_fp8_scale=self._q_scale_float,\n        )"
+    },
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "CUDA：Partial NeoX RoPE 只作用于 rotary_dim",
+      "location": "csrc/libtorch_stable/fused_minimax_m3_qknorm_rope_kv_insert_kernel.cu · L150–181",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/csrc/libtorch_stable/fused_minimax_m3_qknorm_rope_kv_insert_kernel.cu#L150-L181",
+      "code": "  // ── Partial NeoX RoPE on dims [0, rotary_dim) ──────────────────────────\n  // half = rotary_dim/2.  Pair (i, i+half) for i in [0, half).  Lane L owns\n  // dims [4L, 4L+4); since half is a multiple of 4, a lane lies wholly in the\n  // first half (own=x[i]) or second half (own=x[i+half]); its partner lives\n  // ``half/4`` lanes away (XOR with that distance).\n  if (do_rope) {\n    int const half = rotary_dim / 2;\n    int const dim0 = laneId * kElemsPerLane;\n    bool const in_rope = dim0 < rotary_dim;\n    int const lane_xor = half / kElemsPerLane;  // partner-lane distance\n\n    float partner[kElemsPerLane];\n#pragma unroll\n    for (int i = 0; i < kElemsPerLane; i++) {\n      partner[i] = __shfl_xor_sync(FINAL_MASK, elems[i], lane_xor, 32);\n    }\n    if (in_rope) {\n      bool const first_half = dim0 < half;\n      int const i_base = first_half ? dim0 : (dim0 - half);  // cos/sin index\n      scalar_t const* sin_ptr = cos_ptr + half;\n#pragma unroll\n      for (int i = 0; i < kElemsPerLane; i++) {\n        float const c = static_cast<float>(cos_ptr[i_base + i]);\n        float const s = static_cast<float>(sin_ptr[i_base + i]);\n        if (first_half) {\n          elems[i] = elems[i] * c - partner[i] * s;\n        } else {\n          elems[i] = elems[i] * c + partner[i] * s;\n        }\n      }\n    }\n  }"
+    }
+  ],
+  "indexcache": [
+    {
+      "stage": "源码",
+      "title": "Index K：单头 key-only spec 与 bind squeeze",
+      "location": "vllm/models/minimax_m3/common/indexer.py · L139–153",
+      "code": "        compilation_config.static_forward_context[prefix] = self\n\n    def bind_kv_cache(self, kv_cache: torch.Tensor) -> None:\n        # [B, H=1, N, C] -> [B, N, C]\n        self.kv_cache = kv_cache.squeeze(1)\n\n    def get_kv_cache_spec(self, vllm_config: VllmConfig) -> KVCacheSpec:\n        # Key-only: MLAAttentionSpec budgets one vector/token (not 2x for K+V).\n        return MLAAttentionSpec(\n            block_size=vllm_config.cache_config.block_size,\n            num_kv_heads=1,\n            head_size=self.head_dim,\n            dtype=self.dtype,\n            cache_role=SparseCacheRole.INDEXER,\n        )",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/indexer.py#L139-L153"
+    },
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "融合写入的两个 slot mapping 与两套缓存",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L615–640",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L615-L640",
+      "code": "            dtype=self.indexer.index_cache.dtype,\n        )\n        ops.fused_minimax_m3_qknorm_rope_kv_insert(\n            qkv,\n            self.q_norm.weight,\n            self.k_norm.weight,\n            cos_sin_cache,\n            positions,\n            self.num_heads,\n            self.num_kv_heads,\n            rotary_dim,\n            eps,\n            self.index_q_norm.weight,\n            self.index_k_norm.weight,\n            self.num_idx_heads,\n            main_slot_mapping,\n            index_slot_mapping,\n            self.kv_cache,\n            self.indexer.index_cache.kv_cache,\n            self.kv_cache.size(2),  # paged-cache block size\n            q,\n            index_q,\n            self.kv_cache_dtype,\n            q_fp8_out=query_fp8,\n            q_fp8_scale=self._q_scale_float,\n        )"
+    }
+  ],
+  "indexscore": [
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "Indexer：点积、因果 mask、块内 max",
+      "location": "vllm/models/minimax_m3/common/ops/index_topk.py · L145–163",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/index_topk.py#L145-L163",
+      "code": "            + page * stride_ik_blk\n            + off_k[None, :] * stride_ik_pos\n            + off_d[:, None] * stride_ik_d,\n        )\n        qk = tl.dot(q, k)\n        # apply causal mask as needed\n        if q_start < i + BLOCK_SIZE_K:\n            qk = tl.where(off_q[:, None] >= pos[None, :], qk, float(\"-inf\"))\n        # one sparse block per K-tile -> max over the 128 positions\n        score = tl.max(qk, axis=1)  # [BLOCK_SIZE_Q]\n        s_ptrs = (\n            score_ptr\n            + pid_h * stride_s_h\n            + (seq_start + pid_q * BLOCK_SIZE_Q + tl.arange(0, BLOCK_SIZE_Q))\n            * stride_s_n\n            + blk * stride_s_k\n        )\n        q_store_mask = (pid_q * BLOCK_SIZE_Q + tl.arange(0, BLOCK_SIZE_Q)) < q_len\n        tl.store(s_ptrs, score, mask=q_store_mask)"
+    }
+  ],
+  "topk": [
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "Indexer：有限优先值保留 local/init 块",
+      "location": "vllm/models/minimax_m3/common/ops/index_topk.py · L229–245",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/index_topk.py#L229-L245",
+      "code": "    valid_blocks = (prefix_len + pid_q * sample_interval + block_size) // block_size\n    for i in tl.range(0, valid_blocks, BLOCK_SIZE_K):\n        causal_mask = i + off_k < valid_blocks\n        local_mask = i + off_k >= max(0, valid_blocks - local_blocks)\n        init_mask = i + off_k < init_blocks\n        score = tl.load(s_ptrs, mask=causal_mask, other=-1e30).to(tl.float32)\n        score = tl.where(score != score, -1e30, score)\n        s_ptrs = s_ptrs + stride_s_k * BLOCK_SIZE_K\n        if MASK_INIT:\n            score = tl.where(causal_mask & init_mask, score - 1e29, score)\n        else:\n            score = tl.where(causal_mask & init_mask, 1e30, score)\n        if MASK_LOCAL:\n            score = tl.where(causal_mask & local_mask, score - 1e28, score)\n        else:\n            score = tl.where(causal_mask & local_mask, 1e29, score)\n        topk_score, last_topk_score = score, topk_score"
+    },
+    {
+      "stage": "源码",
+      "title": "Top-k：有效槽判断与 -1 的实际写入",
+      "location": "vllm/models/minimax_m3/common/ops/index_topk.py · L270–284",
+      "code": "    topk_idx = tl.sum(\n        topk_mask[:, None]\n        * tl.reshape(topk_idx - 1, [BLOCK_SIZE_K // BLOCK_SIZE_T, BLOCK_SIZE_T]),\n        axis=0,\n    )\n    ti_ptrs = (\n        ti_ptr\n        + (block_start + pid_q) * stride_ti_n\n        + pid_h * stride_ti_h\n        + off_t * stride_ti_t\n    )\n    store_mask = off_t < topk\n    valid_mask = off_t < valid_blocks\n    topk_idx = tl.where(store_mask & valid_mask, topk_idx, -1)\n    tl.store(ti_ptrs, topk_idx.to(ti_ptrs.dtype.element_ty), mask=store_mask)",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/index_topk.py#L270-L284"
+    }
+  ],
+  "paged": [
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "稀疏内核：逻辑块映射到物理 page",
+      "location": "vllm/models/minimax_m3/common/ops/sparse_attn.py · L140–155",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/sparse_attn.py#L140-L155",
+      "code": "        for _ in range(real_topk):\n            blk = tl.load(t_ptr_j).to(tl.int32)\n            t_ptr_j = t_ptr_j + stride_tk\n            c = blk * BLOCK_SIZE_K\n            page = tl.load(bt_row + blk).to(tl.int64)\n            pos = c + off_n\n            pos_mask = pos < seq_len\n            k = tl.load(\n                kv_cache_ptr\n                + page * stride_kv_blk\n                + pid_kh * stride_kv_h\n                + off_n[None, :] * stride_kv_pos\n                + off_d[:, None] * stride_kv_d,\n                mask=d_mask[:, None] & pos_mask[None, :],\n                other=0.0,\n            )"
+    },
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "融合数学分解：QK、scale、mask、online softmax、PV",
+      "location": "vllm/models/minimax_m3/common/ops/sparse_attn.py · L169–204",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/sparse_attn.py#L169-L204",
+      "code": "            qk = tl.zeros((BLOCK_SIZE_Q, BLOCK_SIZE_H, BLOCK_SIZE_K), dtype=tl.float32)\n            # causal: q_abs_pos - k_off >= block_start (c)\n            qk += tl.where(off_q[:, None, :] >= c, 0, float(\"-inf\"))\n            qk = tl.reshape(qk, BLOCK_SIZE_QH, BLOCK_SIZE_K)\n            qk += tl.dot(q, k) * sm_scale_log2e\n            qk += tl.where(pos_mask[None, :], 0, float(\"-inf\"))\n            m_ij = tl.maximum(m_i, tl.max(qk, axis=1))\n            p = tl.exp2(qk - m_ij[:, None])\n            l_ij = tl.sum(p, axis=1)\n            acc_o = acc_o * tl.exp2(m_i - m_ij)[:, None]\n            v = tl.load(\n                kv_cache_ptr\n                + page * stride_kv_blk\n                + pid_kh * stride_kv_h\n                + off_n[:, None] * stride_kv_pos\n                + (head_dim + off_d[None, :]) * stride_kv_d,\n                mask=pos_mask[:, None] & d_mask[None, :],\n                other=0.0,\n            )\n            if USE_FP8:\n                v = v.to(q.dtype)\n                if KV_SCALE_MODE == 1:\n                    v = (v * tl.load(v_scale_ptr)).to(q.dtype)\n                elif KV_SCALE_MODE == 2:\n                    v_scale = tl.load(\n                        v_scale_ptr\n                        + pid_kh * stride_vs_h\n                        + (page * BLOCK_SIZE_K + off_n) * stride_vs_t,\n                        mask=pos_mask,\n                        other=1.0,\n                    )\n                    v = (v * v_scale[:, None]).to(q.dtype)\n            acc_o += tl.dot(p.to(v.dtype), v)\n            m_i = m_ij\n            lse_i = m_ij + tl.log2(tl.exp2(lse_i - m_ij) + l_ij)\n        acc_o = acc_o * tl.exp2(m_i - lse_i)[:, None]"
+    }
+  ],
+  "oproj": [
+    {
+      "stage": "源码",
+      "title": "O projection reduce_results=False，post-norm 负责归并",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L452–462",
+      "code": "        # reduce_results=False: the attention all-reduce is fused with the\n        # following post_attention_layernorm (GemmaRMSNorm) in the decoder layer\n        # via fused_allreduce_gemma_rms_norm.\n        self.o_proj = RowParallelLinear(\n            self.total_num_heads * self.head_dim,\n            self.hidden_size,\n            bias=False,\n            reduce_results=False,\n            quant_config=quant_config,\n            prefix=f\"{prefix}.o_proj\",\n        )",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L452-L462"
+    },
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "Attention：输出投影返回残差宽度",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L642–647",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L642-L647",
+      "code": "        output = torch.empty_like(q)\n        attn_output = self._run_attention(q, query_fp8, index_q, output)\n        output, _ = self.o_proj(attn_output)\n        return output\n\n    @eager_break_during_capture"
+    }
+  ],
+  "gateup": [
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "Dense MLP：合并 Gate/Up，构造 Down",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L156–170",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L156-L170",
+      "code": "        super().__init__()\n        self.gate_up_proj = MergedColumnParallelLinear(\n            config.hidden_size,\n            [intermediate_size] * 2,\n            bias=False,\n            quant_config=quant_config,\n            prefix=f\"{prefix}.gate_up_proj\",\n        )\n        self.down_proj = RowParallelLinear(\n            intermediate_size,\n            config.hidden_size,\n            bias=False,\n            quant_config=quant_config,\n            reduce_results=reduce_results,\n            prefix=f\"{prefix}.down_proj\","
+    },
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "MLP forward：投影、激活、Down",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L184–189",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L184-L189",
+      "code": "    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        gate_up, _ = self.gate_up_proj(x)\n        x = self.act_fn(gate_up)\n        x, _ = self.down_proj(x)\n        return x\n"
+    },
+    {
+      "stage": "源码",
+      "title": "FFN reduce_results：PP=1 延迟，PP>1/MTP 归并",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L720–744",
+      "code": "        # Dense layers store the FFN under `mlp`; MoE layers under\n        # `block_sparse_moe` -- matching the checkpoint's naming.\n        # Leave the FFN output un-reduced so its all-reduce fuses into the\n        # next RMSNorm. MTP blocks add the residual directly and PP sends\n        # hidden states across stages, so both must reduce.\n        reduce_results = (\n            is_mtp_block or vllm_config.parallel_config.pipeline_parallel_size > 1\n        )\n        self.is_moe_layer = force_moe or _is_moe_layer(config, layer_id)\n        if self.is_moe_layer:\n            self.block_sparse_moe = MiniMaxM3MoE(\n                config=config,\n                layer_id=layer_id,\n                quant_config=quant_config,\n                reduce_results=reduce_results,\n                prefix=f\"{prefix}.block_sparse_moe\",\n            )\n        else:\n            self.mlp = MiniMaxM3MLP(\n                config=config,\n                intermediate_size=config.dense_intermediate_size,\n                quant_config=quant_config,\n                prefix=f\"{prefix}.mlp\",\n                reduce_results=reduce_results,\n            )",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L720-L744"
+    },
+    {
+      "stage": "源码",
+      "title": "FFN 是否延迟 all-reduce 的实际属性",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L782–790",
+      "code": "    @property\n    def ffn_all_reduce_deferred(self) -> bool:\n        \"\"\"This layer's FFN output is left un-reduced; the caller fuses the\n        all-reduce into the next RMSNorm.\"\"\"\n        if self.is_moe_layer:\n            return self.block_sparse_moe.experts.moe_config.skip_final_all_reduce\n        return not self.mlp.down_proj.reduce_results\n\n",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L782-L790"
+    },
+    {
+      "stage": "源码",
+      "title": "下一 input norm / final norm 接收延迟归并",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L853–860",
+      "code": "        # Configure cross-layer all-reduce/RMSNorm fusion: a layer whose FFN output\n        # is left un-reduced has that all-reduce fused into the next layer's\n        # input_layernorm (or the final norm).\n        prev_defers = False\n        for idx, layer in enumerate(self.layers[self.start_layer : self.end_layer]):\n            layer.fuse_input_allreduce = idx > 0 and prev_defers\n            prev_defers = layer.ffn_all_reduce_deferred\n        self.fuse_final_norm_allreduce = prev_defers",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L853-L860"
+    }
+  ],
+  "swiglu": [
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "SwiGLU-OAI：实际切分、裁剪和计算",
+      "location": "vllm/model_executor/layers/activation.py · L240–244",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/model_executor/layers/activation.py#L240-L244",
+      "code": "    def forward_native(self, x: torch.Tensor) -> torch.Tensor:\n        d = x.shape[-1] // 2\n        gate = torch.clamp(x[..., :d], max=self.swiglu_limit)\n        up = torch.clamp(x[..., d:], min=-self.swiglu_limit, max=self.swiglu_limit)\n        return gate * torch.sigmoid(self.alpha * gate) * (up + self.beta)"
+    }
+  ],
+  "router": [
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "Router：FP32 GateLinear",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L225–234",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L225-L234",
+      "code": "\n        # Router weights are stored in fp32; GateLinear upcasts the bf16\n        # activations and computes the gate in fp32 (fp32 router logits).\n        self.gate = GateLinear(\n            config.hidden_size,\n            config.num_local_experts,\n            bias=False,\n            params_dtype=torch.float32,\n            out_dtype=torch.float32,\n            prefix=f\"{prefix}.gate\","
+    },
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "MoE forward：显式 logits 进入 FusedMoE",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L275–285",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L275-L285",
+      "code": "    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:\n        num_tokens, hidden_dim = hidden_states.shape\n        hidden_states = hidden_states.view(-1, hidden_dim)\n\n        # router_logits: (num_tokens, n_experts); GateLinear casts to fp32.\n        router_logits, _ = self.gate(hidden_states)\n        final_hidden_states = self.experts(\n            hidden_states=hidden_states, router_logits=router_logits\n        )\n\n        return final_hidden_states.view(num_tokens, hidden_dim)"
+    }
+  ],
+  "experts": [
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "FusedMoE：Top-k、激活、scaling 与 shared 参数",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L247–267",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L247-L267",
+      "code": "        self.experts = FusedMoEFactory(\n            num_experts=config.num_local_experts,\n            top_k=config.num_experts_per_tok,\n            hidden_size=config.hidden_size,\n            intermediate_size=config.intermediate_size,\n            scoring_func=config.scoring_func,\n            e_score_correction_bias=self.e_score_correction_bias,\n            renormalize=True,\n            # w13 (gate_up_proj) is loaded packed via MergedColumnParallelLinear\n            # ([all gates; all ups]), so use the uninterleaved SwiGLU-OAI variant\n            # rather than the interleaved gpt-oss layout.\n            activation=\"swigluoai_uninterleave\",\n            swiglu_limit=config.swiglu_limit,\n            swiglu_alpha=config.swiglu_alpha,\n            swiglu_beta=config.swiglu_beta,\n            routed_scaling_factor=self.routed_scaling_factor,\n            router_logits_dtype=self.gate.out_dtype,\n            shared_experts=self.shared_experts,\n            quant_config=quant_config,\n            reduce_results=reduce_results,\n            prefix=f\"{prefix}.experts\","
+    },
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "Router 参考路径：sigmoid + bias 仅用于选择",
+      "location": "vllm/model_executor/layers/fused_moe/router/fused_topk_bias_router.py · L283–295",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/model_executor/layers/fused_moe/router/fused_topk_bias_router.py#L283-L295",
+      "code": "    n_routed_experts = gating_output.shape[-1]\n    if scoring_func == \"softmax\":\n        scores = gating_output.softmax(dim=-1)\n    elif scoring_func == \"sigmoid\":\n        scores = gating_output.sigmoid()\n    else:\n        raise ValueError(f\"Unsupported scoring function: {scoring_func}\")\n    if e_score_correction_bias is not None:\n        scores_for_choice = scores.view(\n            -1, n_routed_experts\n        ) + e_score_correction_bias.unsqueeze(0)\n    else:\n        scores_for_choice = scores.view(-1, n_routed_experts)"
+    },
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "Router 参考路径：gather 原分数、归一化和 scaling",
+      "location": "vllm/model_executor/layers/fused_moe/router/fused_topk_bias_router.py · L329–342",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/model_executor/layers/fused_moe/router/fused_topk_bias_router.py#L329-L342",
+      "code": "    else:\n        use_sorted = envs.VLLM_BATCH_INVARIANT\n        topk_indices = torch.topk(scores_for_choice, k=topk, dim=-1, sorted=use_sorted)[\n            1\n        ]\n    topk_weights = scores.gather(1, topk_indices)\n    if renormalize:\n        topk_weights = topk_weights / topk_weights.sum(dim=-1, keepdim=True)\n    topk_weights = topk_weights.to(torch.float32)\n    if routed_scaling_factor != 1.0:\n        topk_weights *= routed_scaling_factor\n    return topk_weights, topk_indices.to(\n        torch.int32 if indices_type is None else indices_type\n    )"
+    }
+  ],
+  "shared": [
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "共享专家由 MLP 构建并传给 FusedMoE",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L236–267",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L236-L267",
+      "code": "\n        self.shared_experts: MiniMaxM3MLP | None = None\n        if self.n_shared_experts:\n            self.shared_experts = MiniMaxM3MLP(\n                config=config,\n                intermediate_size=config.intermediate_size * self.n_shared_experts,\n                quant_config=quant_config,\n                reduce_results=False,\n                prefix=f\"{prefix}.shared_experts\",\n            )\n\n        self.experts = FusedMoEFactory(\n            num_experts=config.num_local_experts,\n            top_k=config.num_experts_per_tok,\n            hidden_size=config.hidden_size,\n            intermediate_size=config.intermediate_size,\n            scoring_func=config.scoring_func,\n            e_score_correction_bias=self.e_score_correction_bias,\n            renormalize=True,\n            # w13 (gate_up_proj) is loaded packed via MergedColumnParallelLinear\n            # ([all gates; all ups]), so use the uninterleaved SwiGLU-OAI variant\n            # rather than the interleaved gpt-oss layout.\n            activation=\"swigluoai_uninterleave\",\n            swiglu_limit=config.swiglu_limit,\n            swiglu_alpha=config.swiglu_alpha,\n            swiglu_beta=config.swiglu_beta,\n            routed_scaling_factor=self.routed_scaling_factor,\n            router_logits_dtype=self.gate.out_dtype,\n            shared_experts=self.shared_experts,\n            quant_config=quant_config,\n            reduce_results=reduce_results,\n            prefix=f\"{prefix}.experts\","
+    },
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "MLP 计算路径",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L184–189",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L184-L189",
+      "code": "    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        gate_up, _ = self.gate_up_proj(x)\n        x = self.act_fn(gate_up)\n        x, _ = self.down_proj(x)\n        return x\n"
+    }
+  ],
+  "maincache": [
+    {
+      "stage": "源码",
+      "title": "主 cache：FullAttentionSpec 的 K/V、local heads",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L556–565",
+      "code": "    def get_kv_cache_spec(self, vllm_config: VllmConfig) -> KVCacheSpec | None:\n        # Main GQA K/V cache. Block size may change after load, refresh it.\n        return FullAttentionSpec(\n            block_size=vllm_config.cache_config.block_size,\n            num_kv_heads=self.num_kv_heads,\n            head_size=self.head_dim,\n            head_size_v=self.head_dim,\n            dtype=self.kv_cache_torch_dtype,\n            kv_quant_mode=get_kv_quant_mode(self.kv_cache_dtype),\n        )",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L556-L565"
+    },
+    {
+      "stage": "源码",
+      "title": "通用 Triton 主 K/V cache 的物理布局",
+      "location": "vllm/models/minimax_m3/common/ops/sparse_attn.py · L1–17",
+      "code": "# SPDX-License-Identifier: Apache-2.0\n# SPDX-FileCopyrightText: Copyright contributors to the vLLM project\n\"\"\"Triton kernels for MiniMax M3 block-sparse GQA attention.\n\nThe main heads attend only to the blocks selected by the lightning indexer (see\n``index_topk``). Adapted to vLLM's paged KV cache: the KV page size is forced to\nequal the sparse block size (128), so one selected block maps to exactly one\npage.\n\nMain K/V cache layout (vLLM):\n  ``(num_blocks, num_kv_heads, 128, 2 * head_dim)``\n  K=[..., :head_dim] V=[..., head_dim:]\n\nOnly the paths MiniMax M3 uses are implemented: no attention sink, base-2\n(exp2/log2) softmax. The decode kernels use split-K (flash-decoding) over the\nselected blocks with a separate merge step, since one query token per request\nleaves the prefill kernels (which parallelize over the query dim) idle.",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/sparse_attn.py#L1-L17"
+    },
+    {
+      "stage": "SOURCE · EXACT EXCERPT",
+      "title": "主与 Index 分支 Norm、RoPE 的融合调用",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L615–640",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L615-L640",
+      "code": "            dtype=self.indexer.index_cache.dtype,\n        )\n        ops.fused_minimax_m3_qknorm_rope_kv_insert(\n            qkv,\n            self.q_norm.weight,\n            self.k_norm.weight,\n            cos_sin_cache,\n            positions,\n            self.num_heads,\n            self.num_kv_heads,\n            rotary_dim,\n            eps,\n            self.index_q_norm.weight,\n            self.index_k_norm.weight,\n            self.num_idx_heads,\n            main_slot_mapping,\n            index_slot_mapping,\n            self.kv_cache,\n            self.indexer.index_cache.kv_cache,\n            self.kv_cache.size(2),  # paged-cache block size\n            q,\n            index_q,\n            self.kv_cache_dtype,\n            q_fp8_out=query_fp8,\n            q_fp8_scale=self._q_scale_float,\n        )"
+    }
+  ],
+  "reduction": [
+    {
+      "stage": "源码",
+      "title": "FFN reduce_results：PP=1 延迟，PP>1/MTP 归并",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L720–744",
+      "code": "        # Dense layers store the FFN under `mlp`; MoE layers under\n        # `block_sparse_moe` -- matching the checkpoint's naming.\n        # Leave the FFN output un-reduced so its all-reduce fuses into the\n        # next RMSNorm. MTP blocks add the residual directly and PP sends\n        # hidden states across stages, so both must reduce.\n        reduce_results = (\n            is_mtp_block or vllm_config.parallel_config.pipeline_parallel_size > 1\n        )\n        self.is_moe_layer = force_moe or _is_moe_layer(config, layer_id)\n        if self.is_moe_layer:\n            self.block_sparse_moe = MiniMaxM3MoE(\n                config=config,\n                layer_id=layer_id,\n                quant_config=quant_config,\n                reduce_results=reduce_results,\n                prefix=f\"{prefix}.block_sparse_moe\",\n            )\n        else:\n            self.mlp = MiniMaxM3MLP(\n                config=config,\n                intermediate_size=config.dense_intermediate_size,\n                quant_config=quant_config,\n                prefix=f\"{prefix}.mlp\",\n                reduce_results=reduce_results,\n            )",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L720-L744"
+    },
+    {
+      "stage": "源码",
+      "title": "FFN 是否延迟 all-reduce 的实际属性",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L782–790",
+      "code": "    @property\n    def ffn_all_reduce_deferred(self) -> bool:\n        \"\"\"This layer's FFN output is left un-reduced; the caller fuses the\n        all-reduce into the next RMSNorm.\"\"\"\n        if self.is_moe_layer:\n            return self.block_sparse_moe.experts.moe_config.skip_final_all_reduce\n        return not self.mlp.down_proj.reduce_results\n\n",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L782-L790"
+    },
+    {
+      "stage": "源码",
+      "title": "下一 input norm / final norm 接收延迟归并",
+      "location": "vllm/models/minimax_m3/nvidia/model.py · L853–860",
+      "code": "        # Configure cross-layer all-reduce/RMSNorm fusion: a layer whose FFN output\n        # is left un-reduced has that all-reduce fused into the next layer's\n        # input_layernorm (or the final norm).\n        prev_defers = False\n        for idx, layer in enumerate(self.layers[self.start_layer : self.end_layer]):\n            layer.fuse_input_allreduce = idx > 0 and prev_defers\n            prev_defers = layer.ffn_all_reduce_deferred\n        self.fuse_final_norm_allreduce = prev_defers",
+      "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L853-L860"
+    }
+  ]
+}

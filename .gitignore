@@ -34,3 +34,7 @@ yarn-error.log*
 # typescript
 /dist/
 *.tsbuildinfo
+
+# Agent collaboration and local diagram tooling
+.scratch/
+.archify/

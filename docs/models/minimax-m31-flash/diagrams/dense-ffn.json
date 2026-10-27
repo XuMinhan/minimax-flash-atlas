@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Dense FFN：两个投影分支与 SwiGLU-OAI",
+    "locale": "zh-CN",
+    "output": ".scratch/add-minimax-m31-flash/artifacts/r02/archify/dense-ffn.html",
+    "quality_profile": "showcase"
+  },
+  "stages": [
+    {
+      "label": "归一化输入"
+    },
+    {
+      "label": "Gate / Up"
+    },
+    {
+      "label": "分支激活"
+    },
+    {
+      "label": "门控合并"
+    },
+    {
+      "label": "Down 投影与输出"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "in",
+      "type": "backend",
+      "label": "FFN 输入",
+      "sublabel": "[B,S,6144]",
+      "stage": 0,
+      "row": 1
+    },
+    {
+      "id": "gate",
+      "type": "backend",
+      "label": "Gate 投影",
+      "sublabel": "12288 / TP",
+      "stage": 1,
+      "row": 0
+    },
+    {
+      "id": "up",
+      "type": "backend",
+      "label": "Up 投影",
+      "sublabel": "12288 / TP",
+      "stage": 1,
+      "row": 2
+    },
+    {
+      "id": "gact",
+      "type": "backend",
+      "label": "Gate 激活",
+      "sublabel": "ḡ · σ(αḡ)",
+      "stage": 2,
+      "row": 0
+    },
+    {
+      "id": "uact",
+      "type": "backend",
+      "label": "Up 裁剪 + 1",
+      "sublabel": "clip(u,-7,7)+1",
+      "stage": 2,
+      "row": 2
+    },
+    {
+      "id": "mul",
+      "type": "backend",
+      "label": "逐元素相乘",
+      "sublabel": "α = 1.702",
+      "stage": 3,
+      "row": 1
+    },
+    {
+      "id": "down",
+      "type": "backend",
+      "label": "Down 投影",
+      "sublabel": "12288 → 6144",
+      "stage": 4,
+      "row": 1
+    }
+  ],
+  "flows": [
+    {
+      "id": "dense-ffn-edge-0",
+      "from": "in",
+      "to": "gate",
+      "label": "同一输入"
+    },
+    {
+      "id": "dense-ffn-edge-1",
+      "from": "in",
+      "to": "up",
+      "label": "同一输入"
+    },
+    {
+      "id": "dense-ffn-edge-2",
+      "from": "gate",
+      "to": "gact",
+      "label": "gate"
+    },
+    {
+      "id": "dense-ffn-edge-3",
+      "from": "up",
+      "to": "uact",
+      "label": "up"
+    },
+    {
+      "id": "dense-ffn-edge-4",
+      "from": "gact",
+      "to": "mul",
+      "label": "门控值"
+    },
+    {
+      "id": "dense-ffn-edge-5",
+      "from": "uact",
+      "to": "mul",
+      "label": "up + 1"
+    },
+    {
+      "id": "dense-ffn-edge-6",
+      "from": "mul",
+      "to": "down",
+      "label": "激活值"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "阅读边界",
+      "items": [
+        "L0–L2 的 Dense FFN；它们的注意力仍然是 MSA。",
+        "实际 Gate / Up 一次 merged column-parallel GEMM；分支图是数学解释。Gate 只裁上界，Up 双向裁剪。",
+        "ḡ=min(g,7)；sigmoid 内也使用裁剪后的 ḡ。PP=1 的 Down 先输出本 rank partial，跨 rank 归并延迟到下一 input norm / final norm；PP>1 时已归并。"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "固定证据",
+      "items": [
+        "HF 262ae6830934f3512211081b8a3f16425b93a239 · Flash 官方配置",
+        "vLLM ced6857afa0ea7b2e3f0846a62e1394e90f15607 · 源码追踪见站点详情",
+        "这是模块级补充图；完整算子、权重输入与数学拆解保留在 Decoder 原生交互图中。"
+      ]
+    }
+  ]
+}

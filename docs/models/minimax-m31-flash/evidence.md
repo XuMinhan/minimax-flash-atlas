@@ -1,0 +1,80 @@
+Document-Kind: model-knowledge
+Authoring: agent-generated, source-grounded
+Model: MiniMax-M3.1-Flash
+Source-Revisions: HF 262ae6830934f3512211081b8a3f16425b93a239; vLLM ced6857afa0ea7b2e3f0846a62e1394e90f15607
+Content-Status: draft
+
+# 证据索引
+
+参考项目固定在 `b4eadfe2727bf5a391ba3ac23d52c062ba684fe0`，新增模块保留原生算子图结构和公共图形路由。
+
+## 上游
+
+- [Flash 官方模型卡](https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/README.md)
+- [Flash config](https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/config.json)
+- [DSpark config](https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/dspark/config.json)
+- [主权重索引](https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/model.safetensors.index.json)
+- [vLLM 固定实现](https://github.com/vllm-project/vllm/tree/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3)
+
+## 完整可见算子覆盖
+
+| 节点 / 公式 ID | 算子 | 逻辑 shape | 固定源码 | 权重核实 |
+|---|---|---|---|---|
+| s-input | Hidden states | logical [B,S,6144]; runtime hidden + residual streams → 2 × [B,S,6144] | [vllm/models/minimax_m3/nvidia/model.py · L754–790](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L754-L790) | 0 个绑定；实际索引核对 |
+| s-position | Build Position IDs | [B] + [Nq] → [Nq] | [gpu_model_runner.py · _prepare_inputs](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/v1/worker/gpu_model_runner.py) | 0 个绑定；实际索引核对 |
+| s-attnmeta | Build Attention Metadata | [B+1] · [B] · bool → backend metadata; 非稠密 [S,T] | [gpu_model_runner.py · CommonAttentionMetadata](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/v1/worker/gpu_model_runner.py) | 0 个绑定；实际索引核对 |
+| s-slots | Resolve KV Slots | [Nq] + [B,Nblocks] → [Nq] + [B,Nblocks] | [gpu_model_runner.py · compute_slot_mapping](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/v1/worker/gpu_model_runner.py) | 0 个绑定；实际索引核对 |
+| s-norm | Gemma RMSNorm | [B,S,6144] → [B,S,6144] | [vllm/models/minimax_m3/nvidia/model.py · L130–142](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L130-L142) | 1 个绑定；实际索引核对 |
+| s-packed | QKV + Index Projection | [B,S,6144] → [B,S,8192/TP+3·max(1,4/TP)·128+128] | [vllm/model_executor/layers/linear.py · L1396–1431](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/model_executor/layers/linear.py#L1396-L1431) | 5 个绑定；实际索引核对 |
+| s-split | Split 5 outputs | [B,S,8192/TP+3·max(1,4/TP)·128+128] → Q:[B,64/TP,S,128]; K,V:[B,max(1,4/TP),S,128]; Qidx:[B,N_idx,rank,S,D_idx]; Kidx:[B,S,128] | [vllm/model_executor/layers/linear.py · L1396–1431](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/model_executor/layers/linear.py#L1396-L1431) | 0 个绑定；实际索引核对 |
+| s-idxnorm | Index Q/K Gemma RMSNorm + RoPE | [B,N_idx,rank,S,D_idx] · [B,S,D_idx] → [B,N_idx,rank,S,D_idx] · [B,S,D_idx] | [vllm/models/minimax_m3/nvidia/model.py · L615–640](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L615-L640) | 2 个绑定；实际索引核对 |
+| s-idxcache | Index K Cache · key-only | [B,S,128] + [Nq] → key-only pages · [T,128] | [vllm/models/minimax_m3/common/indexer.py · L139–153](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/indexer.py#L139-L153) | 0 个绑定；实际索引核对 |
+| s-idxscore | Index Q × cached Kᵀ | [B,max(1,4/TP),S,128] · [B,T,128] → [B,max(1,4/TP),S,T] | [vllm/models/minimax_m3/common/ops/index_topk.py · L145–163](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/index_topk.py#L145-L163) | 0 个绑定；实际索引核对 |
+| s-idxmask | Mask Future Index Keys | [B,max(1,4/TP),S,T] + [B,S] → [B,max(1,4/TP),S,T] | [vllm/models/minimax_m3/common/ops/index_topk.py · L145–163](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/index_topk.py#L145-L163) | 0 个绑定；实际索引核对 |
+| s-blockmax | Block Max · B_block keys | [B,max(1,4/TP),S,T] → [B,max(1,4/TP),S,⌈T/128⌉] | [vllm/models/minimax_m3/common/ops/index_topk.py · L145–163](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/index_topk.py#L145-L163) | 0 个绑定；实际索引核对 |
+| s-topk | Top-K_block Blocks · per group | [B,max(1,4/TP),S,Nblocks] → [B,max(1,4/TP),S,16] | [vllm/models/minimax_m3/common/ops/index_topk.py · L229–245](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/index_topk.py#L229-L245) | 0 个绑定；实际索引核对 |
+| s-mainnorm | Main Q/K Gemma RMSNorm | [B,64/TP,S,128] · [B,max(1,4/TP),S,128] → [B,64/TP,S,128] · [B,max(1,4/TP),S,128] | [vllm/models/minimax_m3/nvidia/model.py · L130–142](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L130-L142) | 2 个绑定；实际索引核对 |
+| s-rope | Partial RoPE | Q/K + [S] → Q/K unchanged | [vllm/models/minimax_m3/nvidia/model.py · L615–640](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L615-L640) | 0 个绑定；实际索引核对 |
+| s-cache | Paged KV Cache | 2 × [B,max(1,4/TP),S,128] + runtime metadata → [Npages,max(1,4/TP),128,256] | [vllm/models/minimax_m3/nvidia/model.py · L556–565](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L556-L565) | 0 个绑定；实际索引核对 |
+| s-qk | Q × paged Kᵀ · Top-K_block | [B,Nₕ/TP,S,Dₕ] + KV pages + [B,max(1,4/TP),S,16] → [B,Nₕ/TP,S,K_sel] | [vllm/models/minimax_m3/common/ops/sparse_attn.py · L140–155](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/sparse_attn.py#L140-L155) | 0 个绑定；实际索引核对 |
+| s-scale | Scale 1/√Dₕ | [B,Nₕ/TP,S,K_sel] → same | [vllm/models/minimax_m3/common/ops/sparse_attn.py · L140–155](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/sparse_attn.py#L140-L155) | 0 个绑定；实际索引核对 |
+| s-mask | Apply Token Causal / Pad Mask | [B,64/TP,S,Ksel] + runtime metadata → [B,64/TP,S,Ksel] | [vllm/models/minimax_m3/common/ops/sparse_attn.py · L140–155](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/sparse_attn.py#L140-L155) | 0 个绑定；实际索引核对 |
+| s-softmax | Softmax | [B,64/TP,S,≤2048] → same | [vllm/models/minimax_m3/common/ops/sparse_attn.py · L140–155](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/sparse_attn.py#L140-L155) | 0 个绑定；实际索引核对 |
+| s-pv | P × paged V · same Top-K_block | [B,Nₕ/TP,S,K_sel] + KV pages → [B,S,NₕDₕ/TP] | [vllm/models/minimax_m3/common/ops/sparse_attn.py · L140–155](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/sparse_attn.py#L140-L155) | 0 个绑定；实际索引核对 |
+| s-oproj | O Projection | [B,S,8192/TP] → [B,S,6144] | [vllm/models/minimax_m3/nvidia/model.py · L452–462](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L452-L462) | 1 个绑定；实际索引核对 |
+| s-addattn | Attention Residual Merge | 2 × [B,S,6144] → [B,S,6144] | [vllm/models/minimax_m3/nvidia/model.py · L754–790](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L754-L790) | 0 个绑定；实际索引核对 |
+| s-postnorm | Post-attn Gemma RMSNorm | [B,S,6144] → [B,S,6144] | [vllm/models/minimax_m3/nvidia/model.py · L130–142](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L130-L142) | 1 个绑定；实际索引核对 |
+| d-gateup | Gate + Up Projection | [B,S,6144] → [B,S,24576/TP] | [vllm/models/minimax_m3/nvidia/model.py · L156–170](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L156-L170) | 2 个绑定；实际索引核对 |
+| d-gatesplit | Split Gate / Up | [B,S,24576/TP] → 2 × [B,S,12288/TP] | [vllm/model_executor/layers/activation.py · L240–244](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/model_executor/layers/activation.py#L240-L244) | 0 个绑定；实际索引核对 |
+| d-swiglu | SwiGLU-OAI | 2 × [B,S,12288/TP] → [B,S,12288/TP] | [vllm/model_executor/layers/activation.py · L240–244](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/model_executor/layers/activation.py#L240-L244) | 0 个绑定；实际索引核对 |
+| d-down | Down Projection | [B,S,12288/TP] → [B,S,6144] | [vllm/models/minimax_m3/nvidia/model.py · L156–170](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L156-L170) | 1 个绑定；实际索引核对 |
+| d-add2 | Decoder Layer Residual Merge | 2 × [B,S,6144] → [B,S,6144] | [vllm/models/minimax_m3/nvidia/model.py · L754–790](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L754-L790) | 0 个绑定；实际索引核对 |
+| s-router | FP32 Router Logits | [B,S,6144] → [B,S,128] | [vllm/models/minimax_m3/nvidia/model.py · L225–234](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L225-L234) | 1 个绑定；实际索引核对 |
+| s-experts | Fused Top-4 Routing + Experts | [B,S,6144] + [B,S,128] → [B,S,6144] | [vllm/models/minimax_m3/nvidia/model.py · L247–267](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L247-L267) | 4 个绑定；实际索引核对 |
+| s-shared | Shared Expert ×1 | [B,S,6144] → [B,S,6144] | [vllm/models/minimax_m3/nvidia/model.py · L236–267](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L236-L267) | 3 个绑定；实际索引核对 |
+| s-sum | Add Routed + Shared | 2 × [B,S,6144] → [B,S,6144] | [vllm/models/minimax_m3/nvidia/model.py · L247–267](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L247-L267) | 0 个绑定；实际索引核对 |
+| s-addout | Decoder Layer Residual Merge | 2 × [B,S,6144] → [B,S,6144] | [vllm/models/minimax_m3/nvidia/model.py · L754–790](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L754-L790) | 0 个绑定；实际索引核对 |
+| flash-image | Image / video input | 动态分辨率；依预处理配置 → [N_patch,1176] + [N_items,3]（模型层入口） | [vllm/models/minimax_m3/common/vision_tower.py · L40–78](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/vision_tower.py#L40-L78) | 0 个绑定；实际索引核对 |
+| flash-patch | Conv3D patch embedding | [N_patch,1176]，1176=3×2×14×14 → [N_patch,1280] | [vllm/models/minimax_m3/common/vision_tower.py · L40–78](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/vision_tower.py#L40-L78) | 1 个绑定；实际索引核对 |
+| flash-vit | Vision Transformer × 32 | [N_patch,1280] + 边界与位置元数据 → [N_patch,1280] | [vllm/models/minimax_m3/common/vision_tower.py · L294–339](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/vision_tower.py#L294-L339) | 0 个绑定；实际索引核对 |
+| flash-projector | Multimodal projector | [N_patch,1280] → [N_patch,6144] | [vllm/models/minimax_m3/common/vision_tower.py · L593–631](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/vision_tower.py#L593-L631) | 2 个绑定；实际索引核对 |
+| flash-merge | 2×2 Patch merger | [N_patch,6144] → [N_patch/4,6144] | [vllm/models/minimax_m3/common/vision_tower.py · L635–673](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/vision_tower.py#L635-L673) | 2 个绑定；实际索引核对 |
+| flash-fusion | Multimodal embedding fusion | [Nq,6144] + [N_vision,6144] + [Nq] → [Nq,6144]，逻辑 [B,S,6144] | [vllm/model_executor/models/interfaces.py · L493–528](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/model_executor/models/interfaces.py#L493-L528) | 1 个绑定；实际索引核对 |
+| flash-final | Final Norm → LM Head | [B,S,6144]（逻辑） → [B,S,200064]（逻辑；运行时按所需 token 计算） | [vllm/models/minimax_m3/nvidia/model.py · L891–901](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L891-L901) | 2 个绑定；实际索引核对 |
+| flash-target | Target hidden states | 5 × [...,6144]；目标 ids 见配置 → 具体运行时组织未核实 | [官方 DSpark config](https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/dspark/config.json) | 0 个绑定；实际索引核对 |
+| flash-draft | DSpark draft × 5 | 配置 hidden=6144，block size=7 → 具体运行时组织未核实 | [官方 DSpark config](https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/dspark/config.json) | 0 个绑定；实际索引核对 |
+| flash-markov | Markov + confidence heads | hidden=6144；Markov rank=256（配置） → 具体运行时 shape 未核实 | [官方 DSpark config](https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/dspark/config.json) | 0 个绑定；实际索引核对 |
+| flash-verify | Target verification | 投机解码关系示意；实现未核实 → 接受长度由运行时决定 | [官方 DSpark config](https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/dspark/config.json) | 0 个绑定；实际索引核对 |
+
+## 权重证据分层
+
+`public/flash-data/weights.json` 无损重建原始 89,632 个 key → 分片映射，包含 48 个主模型文件，总 tensor bytes 250,103,411,200。`tensor-shapes.json` 是实际读取分片 1、2、48 的 5,277 个 header 条目。模型的 `weight-evidence.json` 将同配置层的已读 shape/dtype 推导明确标为推导，分片始终来自完整索引；不把推导写成文件头实测。NVFP4 权重使用 w1/w3/w2.weight_packed，U8 每字节存两个值。
+
+## 后端范围
+
+| 路径 | 证据范围 |
+|---|---|
+| NVIDIA 模型调度、通用 Triton 数学参考 | 已阅读固定 vLLM 版本及相关 CUDA/Router 代码 |
+| 硬件专用 MSA/CUTLASS 路径、AMD、Ascend | 未做独立实现验证，不宣称性能或兼容性 |
+| DSpark 具体执行内核与接受采样 | 仅配置可核实；不以旧 MTP 冒充 |
+| 模型推理效果、吞吐、显存峰值 | 未实测 |

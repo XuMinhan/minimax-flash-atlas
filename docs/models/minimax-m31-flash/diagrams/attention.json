@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "MSA 主路径：逻辑页索引控制精确注意力",
+    "locale": "zh-CN",
+    "output": ".scratch/add-minimax-m31-flash/artifacts/r02/archify/attention.html",
+    "quality_profile": "showcase"
+  },
+  "stages": [
+    {
+      "label": "投影输出"
+    },
+    {
+      "label": "Norm / RoPE"
+    },
+    {
+      "label": "KV 与候选块"
+    },
+    {
+      "label": "融合 Attention"
+    },
+    {
+      "label": "输出投影"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "q",
+      "type": "backend",
+      "label": "主 Query",
+      "sublabel": "64 × 128",
+      "stage": 0,
+      "row": 0
+    },
+    {
+      "id": "kv",
+      "type": "backend",
+      "label": "当前 K / V",
+      "sublabel": "4 × 128",
+      "stage": 0,
+      "row": 2
+    },
+    {
+      "id": "prep",
+      "type": "backend",
+      "label": "QK 预处理",
+      "sublabel": "V 不旋转",
+      "stage": 1,
+      "row": 1
+    },
+    {
+      "id": "cache",
+      "type": "backend",
+      "label": "主 K/V 缓存",
+      "sublabel": "独立于 Index K",
+      "stage": 2,
+      "row": 2
+    },
+    {
+      "id": "top",
+      "type": "backend",
+      "label": "block indices",
+      "sublabel": "每 KV 组 Top-16",
+      "stage": 2,
+      "row": 0
+    },
+    {
+      "id": "attn",
+      "type": "backend",
+      "label": "稀疏 GQA",
+      "sublabel": "QK → mask → PV",
+      "stage": 3,
+      "row": 1
+    },
+    {
+      "id": "out",
+      "type": "backend",
+      "label": "O Projection",
+      "sublabel": "8192 → 6144",
+      "stage": 4,
+      "row": 1
+    }
+  ],
+  "flows": [
+    {
+      "id": "attention-edge-0",
+      "from": "q",
+      "to": "prep",
+      "label": "主 Q"
+    },
+    {
+      "id": "attention-edge-1",
+      "from": "kv",
+      "to": "prep",
+      "label": "主 K / V"
+    },
+    {
+      "id": "attention-edge-2",
+      "from": "prep",
+      "to": "cache",
+      "label": "写入 K/V",
+      "fromSide": "bottom",
+      "toSide": "left"
+    },
+    {
+      "id": "attention-edge-3",
+      "from": "prep",
+      "to": "attn",
+      "label": "旋转 Q",
+      "fromSide": "right",
+      "toSide": "left",
+      "route": "straight"
+    },
+    {
+      "id": "attention-edge-4",
+      "from": "cache",
+      "to": "attn",
+      "label": "按页读取 K/V",
+      "fromSide": "right",
+      "toSide": "bottom"
+    },
+    {
+      "id": "attention-edge-5",
+      "from": "top",
+      "to": "attn",
+      "label": "逻辑块索引",
+      "fromSide": "right",
+      "toSide": "top"
+    },
+    {
+      "id": "attention-edge-6",
+      "from": "attn",
+      "to": "out",
+      "label": "拼接 heads"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "阅读边界",
+      "items": [
+        "QK、scale、因果/padding mask、online softmax、PV 在稀疏 kernel 内融合，图中不声称独立物化 score 或 selected KV。",
+        "主注意力缩放为 1/√128；每 16 个 Query heads 共享一个 KV 组。KV cache 仍保存历史，而非只保存选中的块。"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "固定证据",
+      "items": [
+        "HF 262ae6830934f3512211081b8a3f16425b93a239 · Flash 官方配置",
+        "vLLM ced6857afa0ea7b2e3f0846a62e1394e90f15607 · 源码追踪见站点详情",
+        "这是模块级补充图；完整算子、权重输入与数学拆解保留在 Decoder 原生交互图中。"
+      ]
+    }
+  ]
+}

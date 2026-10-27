@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Flash Decoder：注意力与 FFN 分开配置",
+    "locale": "zh-CN",
+    "output": ".scratch/add-minimax-m31-flash/artifacts/r01/archify/overview.html",
+    "quality_profile": "showcase"
+  },
+  "stages": [
+    {
+      "label": "层输入"
+    },
+    {
+      "label": "归一化"
+    },
+    {
+      "label": "稀疏注意力"
+    },
+    {
+      "label": "FFN 子层"
+    },
+    {
+      "label": "层输出"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "tokens",
+      "type": "external",
+      "label": "残差输入",
+      "sublabel": "[B,S,6144]",
+      "stage": 0,
+      "row": 0
+    },
+    {
+      "id": "norm",
+      "type": "backend",
+      "label": "Gemma Norm",
+      "sublabel": "(1 + weight)",
+      "stage": 1,
+      "row": 0
+    },
+    {
+      "id": "msa",
+      "type": "backend",
+      "label": "MSA 注意力",
+      "sublabel": "所有 L0–L59",
+      "stage": 2,
+      "row": 0
+    },
+    {
+      "id": "post",
+      "type": "backend",
+      "label": "残差 + Norm",
+      "sublabel": "Attention 后",
+      "stage": 2,
+      "row": 2
+    },
+    {
+      "id": "ffn",
+      "type": "backend",
+      "label": "Dense / MoE",
+      "sublabel": "L0–2 / L3–59",
+      "stage": 3,
+      "row": 2
+    },
+    {
+      "id": "out",
+      "type": "backend",
+      "label": "残差合并",
+      "sublabel": "[B,S,6144]",
+      "stage": 4,
+      "row": 2
+    }
+  ],
+  "flows": [
+    {
+      "id": "overview-edge-0",
+      "from": "tokens",
+      "to": "norm",
+      "label": "hidden"
+    },
+    {
+      "id": "overview-edge-1",
+      "from": "norm",
+      "to": "msa",
+      "label": "归一化输入"
+    },
+    {
+      "id": "overview-edge-2",
+      "from": "msa",
+      "to": "post",
+      "label": "attention 输出"
+    },
+    {
+      "id": "overview-edge-3",
+      "from": "tokens",
+      "to": "post",
+      "label": "残差旁路"
+    },
+    {
+      "id": "overview-edge-4",
+      "from": "post",
+      "to": "ffn",
+      "label": "FFN 输入"
+    },
+    {
+      "id": "overview-edge-5",
+      "from": "ffn",
+      "to": "out",
+      "label": "FFN 输出"
+    },
+    {
+      "id": "overview-edge-6",
+      "from": "post",
+      "to": "out",
+      "label": "残差流"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "阅读边界",
+      "items": [
+        "Flash 的全部 60 层使用稀疏注意力；Dense 只描述前 3 层的 FFN。",
+        "图中 residual add 与 norm 为数学拆解，vLLM 可融合执行；最终 FFN add 可能延迟到下一层 norm。"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "固定证据",
+      "items": [
+        "HF 262ae6830934f3512211081b8a3f16425b93a239 · Flash 官方配置",
+        "vLLM ced6857afa0ea7b2e3f0846a62e1394e90f15607 · 源码追踪见站点详情",
+        "这是模块级补充图；完整算子、权重输入与数学拆解保留在 Decoder 原生交互图中。"
+      ]
+    }
+  ]
+}

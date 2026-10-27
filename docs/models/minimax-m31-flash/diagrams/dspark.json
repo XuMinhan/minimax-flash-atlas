@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "DSpark：独立 5 层草稿与主模型验证",
+    "locale": "zh-CN",
+    "output": ".scratch/add-minimax-m31-flash/artifacts/r01/archify/dspark.html",
+    "quality_profile": "showcase"
+  },
+  "stages": [
+    {
+      "label": "主模型特征"
+    },
+    {
+      "label": "草稿输入"
+    },
+    {
+      "label": "草稿网络"
+    },
+    {
+      "label": "预测头"
+    },
+    {
+      "label": "主模型验证"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "target",
+      "type": "backend",
+      "label": "Target features",
+      "sublabel": "L3,17,31,45,59",
+      "stage": 0,
+      "row": 0
+    },
+    {
+      "id": "input",
+      "type": "backend",
+      "label": "草稿上下文",
+      "sublabel": "hidden size 6144",
+      "stage": 1,
+      "row": 0
+    },
+    {
+      "id": "draft",
+      "type": "backend",
+      "label": "5 层 Dense 草稿",
+      "sublabel": "window 4096",
+      "stage": 2,
+      "row": 0
+    },
+    {
+      "id": "heads",
+      "type": "backend",
+      "label": "Markov / 置信度",
+      "sublabel": "rank 256",
+      "stage": 3,
+      "row": 0
+    },
+    {
+      "id": "verify",
+      "type": "backend",
+      "label": "候选验证",
+      "sublabel": "接受长度取决运行时",
+      "stage": 4,
+      "row": 0
+    }
+  ],
+  "flows": [
+    {
+      "id": "dspark-edge-0",
+      "from": "target",
+      "to": "input",
+      "label": "目标层特征"
+    },
+    {
+      "id": "dspark-edge-1",
+      "from": "input",
+      "to": "draft",
+      "label": "上下文"
+    },
+    {
+      "id": "dspark-edge-2",
+      "from": "draft",
+      "to": "heads",
+      "label": "草稿隐状态"
+    },
+    {
+      "id": "dspark-edge-3",
+      "from": "heads",
+      "to": "verify",
+      "label": "候选 block"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "阅读边界",
+      "items": [
+        "只展示 dspark/config.json 可核实的结构和一般投机验证关系；未验证具体 DSpark kernel、Markov 采样算法或加速比。",
+        "DSparkMiniMaxDraftModel：5 层，block size 7，use_mtp=false。不能将旧的 minimax_m3/mtp.py 当作其实现。"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "固定证据",
+      "items": [
+        "HF 262ae6830934f3512211081b8a3f16425b93a239 · Flash 官方配置",
+        "vLLM ced6857afa0ea7b2e3f0846a62e1394e90f15607 · 源码追踪见站点详情",
+        "这是模块级补充图；完整算子、权重输入与数学拆解保留在 Decoder 原生交互图中。"
+      ]
+    }
+  ]
+}

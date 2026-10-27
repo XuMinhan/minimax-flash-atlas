@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "MSA Indexer：共享 Index K，分组选择块",
+    "locale": "zh-CN",
+    "output": ".scratch/add-minimax-m31-flash/artifacts/r01/archify/indexer.html",
+    "quality_profile": "showcase"
+  },
+  "stages": [
+    {
+      "label": "索引输入"
+    },
+    {
+      "label": "预处理"
+    },
+    {
+      "label": "缓存与评分"
+    },
+    {
+      "label": "块内归约"
+    },
+    {
+      "label": "选块输出"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "iq",
+      "type": "backend",
+      "label": "Index Q",
+      "sublabel": "4 × 128",
+      "stage": 0,
+      "row": 0
+    },
+    {
+      "id": "ik",
+      "type": "backend",
+      "label": "Index K",
+      "sublabel": "1 × 128，共享",
+      "stage": 0,
+      "row": 2
+    },
+    {
+      "id": "prep",
+      "type": "backend",
+      "label": "Norm + RoPE",
+      "sublabel": "前 64 维旋转",
+      "stage": 1,
+      "row": 1
+    },
+    {
+      "id": "cache",
+      "type": "backend",
+      "label": "Index K 缓存",
+      "sublabel": "每 token 128 维",
+      "stage": 2,
+      "row": 2
+    },
+    {
+      "id": "score",
+      "type": "backend",
+      "label": "索引点积",
+      "sublabel": "每 query / group",
+      "stage": 2,
+      "row": 0
+    },
+    {
+      "id": "mask",
+      "type": "backend",
+      "label": "因果边界",
+      "sublabel": "排除未来 key",
+      "stage": 3,
+      "row": 0
+    },
+    {
+      "id": "max",
+      "type": "backend",
+      "label": "Block Max",
+      "sublabel": "128 tokens / block",
+      "stage": 3,
+      "row": 2
+    },
+    {
+      "id": "topk",
+      "type": "backend",
+      "label": "Top-16 blocks",
+      "sublabel": "local 包含在预算中",
+      "stage": 4,
+      "row": 2
+    }
+  ],
+  "flows": [
+    {
+      "id": "indexer-edge-0",
+      "from": "iq",
+      "to": "prep",
+      "label": "索引 Q"
+    },
+    {
+      "id": "indexer-edge-1",
+      "from": "ik",
+      "to": "prep",
+      "label": "当前索引 K"
+    },
+    {
+      "id": "indexer-edge-2",
+      "from": "prep",
+      "to": "cache",
+      "label": "写入 key"
+    },
+    {
+      "id": "indexer-edge-3",
+      "from": "prep",
+      "to": "score",
+      "label": "旋转 Q"
+    },
+    {
+      "id": "indexer-edge-4",
+      "from": "cache",
+      "to": "score",
+      "label": "历史 keys"
+    },
+    {
+      "id": "indexer-edge-5",
+      "from": "score",
+      "to": "mask",
+      "label": "token 分数"
+    },
+    {
+      "id": "indexer-edge-6",
+      "from": "mask",
+      "to": "max",
+      "label": "可见分数"
+    },
+    {
+      "id": "indexer-edge-7",
+      "from": "max",
+      "to": "topk",
+      "label": "块分数"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "阅读边界",
+      "items": [
+        "索引点积不做 1/√128 缩放。四个索引头共享一份 Index K。",
+        "local_blocks=1，init_blocks=0；local 优先值为 1e29，保留在 Top-16 中；无效输出为 -1。"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "固定证据",
+      "items": [
+        "HF 262ae6830934f3512211081b8a3f16425b93a239 · Flash 官方配置",
+        "vLLM ced6857afa0ea7b2e3f0846a62e1394e90f15607 · 源码追踪见站点详情",
+        "这是模块级补充图；完整算子、权重输入与数学拆解保留在 Decoder 原生交互图中。"
+      ]
+    }
+  ]
+}

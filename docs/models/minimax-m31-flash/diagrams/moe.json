@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "MoE：Top-4 路由与共享专家并行",
+    "locale": "zh-CN",
+    "output": ".scratch/add-minimax-m31-flash/artifacts/r02/archify/moe.html",
+    "quality_profile": "showcase"
+  },
+  "stages": [
+    {
+      "label": "归一化输入"
+    },
+    {
+      "label": "路由分数"
+    },
+    {
+      "label": "选择与权重"
+    },
+    {
+      "label": "专家计算"
+    },
+    {
+      "label": "合并输出"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "in",
+      "type": "backend",
+      "label": "FFN 输入",
+      "sublabel": "[B,S,6144]",
+      "stage": 0,
+      "row": 1
+    },
+    {
+      "id": "router",
+      "type": "backend",
+      "label": "FP32 Router",
+      "sublabel": "128 logits",
+      "stage": 1,
+      "row": 0
+    },
+    {
+      "id": "choice",
+      "type": "backend",
+      "label": "Sigmoid / Top-4",
+      "sublabel": "保留原分数与 ids",
+      "stage": 2,
+      "row": 0
+    },
+    {
+      "id": "weights",
+      "type": "backend",
+      "label": "重归一化 × 2",
+      "sublabel": "使用未加 bias 分数",
+      "stage": 2,
+      "row": 2
+    },
+    {
+      "id": "routed",
+      "type": "backend",
+      "label": "4 路由专家",
+      "sublabel": "NVFP4 packed",
+      "stage": 3,
+      "row": 0
+    },
+    {
+      "id": "shared",
+      "type": "backend",
+      "label": "1 共享专家",
+      "sublabel": "始终参与",
+      "stage": 3,
+      "row": 2
+    },
+    {
+      "id": "sum",
+      "type": "backend",
+      "label": "Routed + Shared",
+      "sublabel": "[B,S,6144]",
+      "stage": 4,
+      "row": 1
+    }
+  ],
+  "flows": [
+    {
+      "id": "moe-edge-0",
+      "from": "in",
+      "to": "router",
+      "label": "hidden"
+    },
+    {
+      "id": "moe-edge-1",
+      "from": "router",
+      "to": "choice",
+      "label": "logits"
+    },
+    {
+      "id": "moe-edge-2",
+      "from": "choice",
+      "to": "weights",
+      "label": "ids + 原始 scores"
+    },
+    {
+      "id": "moe-edge-3",
+      "from": "choice",
+      "to": "routed",
+      "label": "专家选择"
+    },
+    {
+      "id": "moe-edge-4",
+      "from": "weights",
+      "to": "routed",
+      "label": "混合权重"
+    },
+    {
+      "id": "moe-edge-5",
+      "from": "in",
+      "to": "routed",
+      "label": "hidden 输入",
+      "route": "top-channel",
+      "fromSide": "top",
+      "toSide": "top"
+    },
+    {
+      "id": "moe-edge-6",
+      "from": "in",
+      "to": "shared",
+      "label": "同一输入",
+      "route": "bottom-channel",
+      "fromSide": "bottom",
+      "toSide": "bottom"
+    },
+    {
+      "id": "moe-edge-7",
+      "from": "routed",
+      "to": "sum",
+      "label": "加权输出"
+    },
+    {
+      "id": "moe-edge-8",
+      "from": "shared",
+      "to": "sum",
+      "label": "共享输出"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "阅读边界",
+      "items": [
+        "128 个 routed experts，每 token 激活 4 个；另有 1 个 shared expert。每个专家中间宽度为 3072。",
+        "实际 FusedMoEFactory 接收 shared_experts；独立分支与 Add 为数学分解，不假定 Python 层各有一次 forward。",
+        "选择节点保留原始 s=σ(logits)；Top-4 只按 s+bias 选择 ids。重归一化节点同时消费 ids 与未加 bias 的 s，gather 后归一化乘2。PP=1 输出归并可延迟到下一 norm。"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "固定证据",
+      "items": [
+        "HF 262ae6830934f3512211081b8a3f16425b93a239 · Flash 官方配置",
+        "vLLM ced6857afa0ea7b2e3f0846a62e1394e90f15607 · 源码追踪见站点详情",
+        "这是模块级补充图；完整算子、权重输入与数学拆解保留在 Decoder 原生交互图中。"
+      ]
+    }
+  ]
+}

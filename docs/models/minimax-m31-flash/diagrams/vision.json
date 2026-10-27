@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "视觉路径：先 Projector，再 Patch Merger",
+    "locale": "zh-CN",
+    "output": ".scratch/add-minimax-m31-flash/artifacts/r02/archify/vision.html",
+    "quality_profile": "showcase"
+  },
+  "stages": [
+    {
+      "label": "像素输入"
+    },
+    {
+      "label": "视觉编码器"
+    },
+    {
+      "label": "投影到文本宽度"
+    },
+    {
+      "label": "空间压缩"
+    },
+    {
+      "label": "语言输入"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "pixels",
+      "type": "external",
+      "label": "图像 / 视频",
+      "sublabel": "动态分辨率",
+      "stage": 0,
+      "row": 0
+    },
+    {
+      "id": "patch",
+      "type": "backend",
+      "label": "Conv3D Patch",
+      "sublabel": "2 × 14 × 14",
+      "stage": 1,
+      "row": 0
+    },
+    {
+      "id": "vit",
+      "type": "backend",
+      "label": "ViT × 32",
+      "sublabel": "1280 / 16 heads",
+      "stage": 1,
+      "row": 2
+    },
+    {
+      "id": "project",
+      "type": "backend",
+      "label": "两层 Projector",
+      "sublabel": "1280 → 6144",
+      "stage": 2,
+      "row": 2
+    },
+    {
+      "id": "merge",
+      "type": "backend",
+      "label": "2×2 Patch Merger",
+      "sublabel": "24576 → 6144",
+      "stage": 3,
+      "row": 2
+    },
+    {
+      "id": "embed",
+      "type": "backend",
+      "label": "Embedding 融合",
+      "sublabel": "[B,S,6144]",
+      "stage": 4,
+      "row": 2
+    }
+  ],
+  "flows": [
+    {
+      "id": "vision-edge-0",
+      "from": "pixels",
+      "to": "patch",
+      "label": "像素块"
+    },
+    {
+      "id": "vision-edge-1",
+      "from": "patch",
+      "to": "vit",
+      "label": "视觉 embedding"
+    },
+    {
+      "id": "vision-edge-2",
+      "from": "vit",
+      "to": "project",
+      "label": "视觉特征"
+    },
+    {
+      "id": "vision-edge-3",
+      "from": "project",
+      "to": "merge",
+      "label": "文本宽度特征"
+    },
+    {
+      "id": "vision-edge-4",
+      "from": "merge",
+      "to": "embed",
+      "label": "视觉 token"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "阅读边界",
+      "items": [
+        "参考 672×672 图像：48×48 个空间 patch，2×2 merge 后为 576 个视觉 token；动态输入 token 数可变。",
+        "执行顺序见 vision_tower.py 的 forward：ViT → multi_modal_projector → patch_merge_mlp。静态图像的时间维由预处理适配。"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "固定证据",
+      "items": [
+        "HF 262ae6830934f3512211081b8a3f16425b93a239 · Flash 官方配置",
+        "vLLM ced6857afa0ea7b2e3f0846a62e1394e90f15607 · 源码追踪见站点详情",
+        "这是模块级补充图；完整算子、权重输入与数学拆解保留在 Decoder 原生交互图中。"
+      ]
+    }
+  ]
+}

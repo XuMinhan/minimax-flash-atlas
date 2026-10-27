@@ -1,0 +1,86 @@
+{
+  "overview": {
+    "sha256": "9092cd24dad2bb1576d596c91e8d1a71ea86685712c0739919c578b745b58612",
+    "bytes": 831724,
+    "gates": {
+      "validate": "pass",
+      "deliver": "pass",
+      "check": "pass",
+      "browser-check": "pass"
+    },
+    "tool": "Archify 3.2",
+    "visualReview": "pending"
+  },
+  "indexer": {
+    "sha256": "3a2f7b4ef163925a5df5521ac2c0b1e638dadd7eb13f603ce8854040ad82f6e9",
+    "bytes": 834621,
+    "gates": {
+      "validate": "pass",
+      "deliver": "pass",
+      "check": "pass",
+      "browser-check": "pass"
+    },
+    "tool": "Archify 3.2",
+    "visualReview": "pending"
+  },
+  "attention": {
+    "sha256": "74244b648346ac8a0b0af35926b8ea7437988e4be22248a8dbff1a6b88fde5c8",
+    "bytes": 832904,
+    "gates": {
+      "validate": "pass",
+      "deliver": "pass",
+      "check": "pass",
+      "browser-check": "pass"
+    },
+    "tool": "Archify 3.2",
+    "visualReview": "pending"
+  },
+  "dense-ffn": {
+    "sha256": "e28da2b0addd0f77f175ba6e062180ee4f2a96ddf84c7baac010d715b06e466f",
+    "bytes": 832902,
+    "gates": {
+      "validate": "pass",
+      "deliver": "pass",
+      "check": "pass",
+      "browser-check": "pass"
+    },
+    "tool": "Archify 3.2",
+    "visualReview": "pending"
+  },
+  "moe": {
+    "sha256": "2e2ba93224fc0d98e0af164642d695c95675a1ded24212520106632ddbe13a90",
+    "bytes": 834592,
+    "gates": {
+      "validate": "pass",
+      "deliver": "pass",
+      "check": "pass",
+      "browser-check": "pass"
+    },
+    "tool": "Archify 3.2",
+    "visualReview": "pending"
+  },
+  "vision": {
+    "sha256": "fdde0749ba5f9355c58788a9aadee0399bf19f2cd377b9f36ce8e403ea795d4a",
+    "bytes": 830528,
+    "gates": {
+      "validate": "pass",
+      "deliver": "pass",
+      "check": "pass",
+      "browser-check": "pass"
+    },
+    "tool": "Archify 3.2",
+    "visualReview": "pending"
+  },
+  "dspark": {
+    "sha256": "d2c233a10cb0554fa2fde8ea88fa4be580a515c9c1f1ab1d08209469e3acf04e",
+    "bytes": 828675,
+    "gates": {
+      "validate": "pass",
+      "deliver": "pass",
+      "check": "pass",
+      "browser-check": "pass"
+    },
+    "tool": "Archify 3.2",
+    "visualReview": "pending"
+  }
+}

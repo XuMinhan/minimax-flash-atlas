@@ -1,0 +1,395 @@
+{
+  "image": {
+    "id": "flash-image",
+    "tone": "vision",
+    "kind": "io",
+    "kicker": "MULTIMODAL / OUTPUT",
+    "title": "Image / video input",
+    "summary": "动态分辨率图像和视频先转换为视觉 patch。672×672 是配置中的参考尺寸；实际 token 数由预处理和分辨率决定。",
+    "input": "图像/视频 + 动态网格信息",
+    "inputShape": "动态分辨率；依预处理配置",
+    "output": "pixel_values · grid_thw",
+    "outputShape": "[N_patch,1176] + [N_items,3]（模型层入口）",
+    "formula": "N_{patch}=\\frac{H_{img}}{14}\\frac{W_{img}}{14}",
+    "latex": "N_{patch}=\\frac{H_{img}}{14}\\frac{W_{img}}{14}",
+    "formulaNote": "逻辑数学解释；实际代码和量化布局以固定版本来源为准。 空间patch公式按单个时间patch组书写；视频具有多个时间组，总token数须再乘预处理产生的时间组数。",
+    "runtime": "Image / video input",
+    "source": "vllm/models/minimax_m3/common/vision_tower.py · L40–78",
+    "sourceUrl": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/vision_tower.py#L40-L78",
+    "code": "patches, grid = preprocess(image_or_video)\n# dynamic resolution; grid records spatial/temporal shape",
+    "codeSections": [
+      {
+        "stage": "SOURCE · EXACT EXCERPT",
+        "title": "视觉 patch embedding 的输入处理",
+        "location": "vllm/models/minimax_m3/common/vision_tower.py · L40–78",
+        "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/vision_tower.py#L40-L78",
+        "code": "    \"\"\"Conv3d-based patch embedding.\n\n    Takes flat tokens of shape (N, C * temporal_patch_size * patch_size²)\n    and projects each to a hidden-size embedding.\n    \"\"\"\n\n    def __init__(self, config: PretrainedConfig) -> None:\n        super().__init__()\n        compression = config.img_token_compression_config\n        temporal_patch_size = compression.get(\"temporal_patch_size\", 2)\n        patch_size = config.patch_size\n        num_channels = config.num_channels\n\n        self.patch_size = patch_size\n        self.temporal_patch_size = temporal_patch_size\n        self.num_channels = num_channels\n        self.hidden_size = config.hidden_size\n\n        self.patch_embedding = nn.Conv3d(\n            in_channels=num_channels,\n            out_channels=config.hidden_size,\n            kernel_size=(temporal_patch_size, patch_size, patch_size),\n            stride=(temporal_patch_size, patch_size, patch_size),\n            bias=False,\n        )\n\n    def forward(self, pixel_values: torch.Tensor) -> torch.Tensor:\n        # pixel_values: (N, C * temporal_patch_size * patch_size²)\n        if self.patch_embedding.weight.dtype != pixel_values.dtype:\n            self.patch_embedding = self.patch_embedding.to(pixel_values.dtype)\n        x = pixel_values.reshape(\n            pixel_values.shape[0],\n            self.num_channels,\n            self.temporal_patch_size,\n            self.patch_size,\n            self.patch_size,\n        )\n        return self.patch_embedding(x).reshape(x.shape[0], -1)\n"
+      }
+    ],
+    "weights": []
+  },
+  "patch": {
+    "id": "flash-patch",
+    "tone": "vision",
+    "kind": "linear",
+    "kicker": "MULTIMODAL / OUTPUT",
+    "title": "Conv3D patch embedding",
+    "summary": "视觉塔使用 Conv3D，空间 kernel/stride 为 14，时间 patch 为 2。静态图像由预处理适配时间维度。",
+    "input": "flattened pixel patches",
+    "inputShape": "[N_patch,1176]，1176=3×2×14×14",
+    "output": "vision embeddings",
+    "outputShape": "[N_patch,1280]",
+    "formula": "X_v=\\mathrm{Conv3D}_{(2,14,14)}(pixels)",
+    "latex": "X_v=\\mathrm{Conv3D}_{(2,14,14)}(pixels)",
+    "formulaNote": "逻辑数学解释；实际代码和量化布局以固定版本来源为准。",
+    "runtime": "Conv3D patch embedding",
+    "source": "vllm/models/minimax_m3/common/vision_tower.py · L40–78",
+    "sourceUrl": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/vision_tower.py#L40-L78",
+    "code": "vision_embeddings = patch_embedding(pixel_values)",
+    "codeSections": [
+      {
+        "stage": "SOURCE · EXACT EXCERPT",
+        "title": "Conv3D patch embedding",
+        "location": "vllm/models/minimax_m3/common/vision_tower.py · L40–78",
+        "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/vision_tower.py#L40-L78",
+        "code": "    \"\"\"Conv3d-based patch embedding.\n\n    Takes flat tokens of shape (N, C * temporal_patch_size * patch_size²)\n    and projects each to a hidden-size embedding.\n    \"\"\"\n\n    def __init__(self, config: PretrainedConfig) -> None:\n        super().__init__()\n        compression = config.img_token_compression_config\n        temporal_patch_size = compression.get(\"temporal_patch_size\", 2)\n        patch_size = config.patch_size\n        num_channels = config.num_channels\n\n        self.patch_size = patch_size\n        self.temporal_patch_size = temporal_patch_size\n        self.num_channels = num_channels\n        self.hidden_size = config.hidden_size\n\n        self.patch_embedding = nn.Conv3d(\n            in_channels=num_channels,\n            out_channels=config.hidden_size,\n            kernel_size=(temporal_patch_size, patch_size, patch_size),\n            stride=(temporal_patch_size, patch_size, patch_size),\n            bias=False,\n        )\n\n    def forward(self, pixel_values: torch.Tensor) -> torch.Tensor:\n        # pixel_values: (N, C * temporal_patch_size * patch_size²)\n        if self.patch_embedding.weight.dtype != pixel_values.dtype:\n            self.patch_embedding = self.patch_embedding.to(pixel_values.dtype)\n        x = pixel_values.reshape(\n            pixel_values.shape[0],\n            self.num_channels,\n            self.temporal_patch_size,\n            self.patch_size,\n            self.patch_size,\n        )\n        return self.patch_embedding(x).reshape(x.shape[0], -1)\n"
+      }
+    ],
+    "weights": [
+      {
+        "key": "vision_tower.vision_model.embeddings.patch_embedding.weight",
+        "shape": "逻辑形状见公式",
+        "dtype": "见文件头",
+        "shard": "索引目录"
+      }
+    ]
+  },
+  "vit": {
+    "id": "flash-vit",
+    "tone": "vision",
+    "kind": "activation",
+    "kicker": "MULTIMODAL / OUTPUT",
+    "title": "Vision Transformer × 32",
+    "summary": "视觉塔宽度 1280、16 个注意力头、FFN 5120；使用 3D RoPE。它与语言 Decoder 的 6144 维残差流不同。",
+    "input": "vision embeddings + cu_seqlens + 3D RoPE",
+    "inputShape": "[N_patch,1280] + 边界与位置元数据",
+    "output": "vision features",
+    "outputShape": "[N_patch,1280]",
+    "formula": "X_v\\in\\mathbb{R}^{N_{patch}\\times1280}",
+    "latex": "X_v\\in\\mathbb{R}^{N_{patch}\\times1280}",
+    "formulaNote": "逻辑数学解释；实际代码和量化布局以固定版本来源为准。",
+    "runtime": "Vision Transformer × 32",
+    "source": "vllm/models/minimax_m3/common/vision_tower.py · L294–339",
+    "sourceUrl": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/vision_tower.py#L294-L339",
+    "code": "features = vision_transformer(embeddings, positions_3d)",
+    "codeSections": [
+      {
+        "stage": "SOURCE · EXACT EXCERPT",
+        "title": "视觉 Transformer 层的构建和执行",
+        "location": "vllm/models/minimax_m3/common/vision_tower.py · L294–339",
+        "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/vision_tower.py#L294-L339",
+        "code": "class MiniMaxVLEncoder(nn.Module):\n    def __init__(\n        self,\n        config: PretrainedConfig,\n        num_hidden_layers_override: int | None = None,\n        quant_config: QuantizationConfig | None = None,\n        prefix: str = \"\",\n    ) -> None:\n        super().__init__()\n        n = (\n            config.num_hidden_layers\n            if num_hidden_layers_override is None\n            else num_hidden_layers_override\n        )\n        self.layers = nn.ModuleList(\n            [\n                MiniMaxVLEncoderLayer(\n                    config=config,\n                    quant_config=quant_config,\n                    prefix=f\"{prefix}.layers.{i}\",\n                )\n                for i in range(n)\n            ]\n        )\n\n    def forward(\n        self,\n        x: torch.Tensor,\n        cu_seqlens: torch.Tensor,\n        rotary_cos: torch.Tensor,\n        rotary_sin: torch.Tensor,\n        max_seqlen: torch.Tensor,\n        rotary_segment_lengths: list[int] | None = None,\n        sequence_lengths: torch.Tensor | None = None,\n    ) -> torch.Tensor:\n        for layer in self.layers:\n            x = layer(\n                x,\n                cu_seqlens,\n                rotary_cos,\n                rotary_sin,\n                max_seqlen,\n                rotary_segment_lengths,\n                sequence_lengths,\n            )\n        return x"
+      }
+    ],
+    "weights": []
+  },
+  "projector": {
+    "id": "flash-projector",
+    "tone": "vision",
+    "kind": "linear",
+    "kicker": "MULTIMODAL / OUTPUT",
+    "title": "Multimodal projector",
+    "summary": "ViT 输出首先通过两层 MLP projector，从视觉宽度 1280 映射到文本宽度 6144，GELU 位于两次线性层之间。",
+    "input": "vision features",
+    "inputShape": "[N_patch,1280]",
+    "output": "projected features",
+    "outputShape": "[N_patch,6144]",
+    "formula": "P=\\mathrm{Linear}_{6144}(\\mathrm{GELU}(\\mathrm{Linear}_{1280\\to6144}(X_v)))",
+    "latex": "P=\\mathrm{Linear}_{6144}(\\mathrm{GELU}(\\mathrm{Linear}_{1280\\to6144}(X_v)))",
+    "formulaNote": "逻辑数学解释；实际代码和量化布局以固定版本来源为准。",
+    "runtime": "Multimodal projector",
+    "source": "vllm/models/minimax_m3/common/vision_tower.py · L593–631",
+    "sourceUrl": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/vision_tower.py#L593-L631",
+    "code": "features = multi_modal_projector(vision_features)",
+    "codeSections": [
+      {
+        "stage": "SOURCE · EXACT EXCERPT",
+        "title": "两层 projector",
+        "location": "vllm/models/minimax_m3/common/vision_tower.py · L593–631",
+        "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/vision_tower.py#L593-L631",
+        "code": "    \"\"\"Two-layer MLP projector: vision_hidden → text_hidden.\"\"\"\n\n    def __init__(\n        self,\n        vision_hidden_size: int,\n        text_hidden_size: int,\n        projector_hidden_size: int | None,\n        multimodal_projector_bias: bool,\n        projector_hidden_act: str = \"gelu\",\n        quant_config: QuantizationConfig | None = None,\n        prefix: str = \"\",\n    ) -> None:\n        super().__init__()\n        mid = projector_hidden_size if projector_hidden_size else text_hidden_size\n        use_dp = is_vit_use_data_parallel()\n        self.linear_1 = ColumnParallelLinear(\n            vision_hidden_size,\n            mid,\n            bias=multimodal_projector_bias,\n            quant_config=quant_config,\n            prefix=f\"{prefix}.linear_1\",\n            disable_tp=use_dp,\n        )\n        self.act = get_act_fn(projector_hidden_act)\n        self.linear_2 = RowParallelLinear(\n            mid,\n            text_hidden_size,\n            bias=multimodal_projector_bias,\n            quant_config=quant_config,\n            prefix=f\"{prefix}.linear_2\",\n            disable_tp=use_dp,\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        x, _ = self.linear_1(x)\n        x = self.act(x)\n        x, _ = self.linear_2(x)\n        return x\n"
+      }
+    ],
+    "weights": [
+      {
+        "key": "multi_modal_projector.linear_1.weight",
+        "shape": "逻辑形状见公式",
+        "dtype": "见文件头",
+        "shard": "索引目录"
+      },
+      {
+        "key": "multi_modal_projector.linear_2.weight",
+        "shape": "逻辑形状见公式",
+        "dtype": "见文件头",
+        "shard": "索引目录"
+      }
+    ]
+  },
+  "merge": {
+    "id": "flash-merge",
+    "tone": "vision",
+    "kind": "activation",
+    "kicker": "MULTIMODAL / OUTPUT",
+    "title": "2×2 Patch merger",
+    "summary": "Projector 之后再做空间 2×2 patch merge。每 4 个相邻 patch 拼接后通过 MLP 压回 6144 维；时间 patch 属于更早的 Conv3D 阶段。",
+    "input": "projected features（按空间网格排列）",
+    "inputShape": "[N_patch,6144]",
+    "output": "merged vision tokens",
+    "outputShape": "[N_patch/4,6144]",
+    "formula": "P_{merged}=\\mathrm{MLP}(\\mathrm{Concat}_{2\\times2}(P))",
+    "latex": "P_{merged}=\\mathrm{MLP}(\\mathrm{Concat}_{2\\times2}(P))",
+    "formulaNote": "逻辑数学解释；实际代码和量化布局以固定版本来源为准。",
+    "runtime": "2×2 Patch merger",
+    "source": "vllm/models/minimax_m3/common/vision_tower.py · L635–673",
+    "sourceUrl": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/vision_tower.py#L635-L673",
+    "code": "# Execution order matters:\nhidden = multi_modal_projector(hidden)\nhidden = patch_merge_mlp(hidden)",
+    "codeSections": [
+      {
+        "stage": "SOURCE · EXACT EXCERPT",
+        "title": "2×2 拼接后的 Patch merger",
+        "location": "vllm/models/minimax_m3/common/vision_tower.py · L635–673",
+        "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/vision_tower.py#L635-L673",
+        "code": "        self,\n        spatial_merge_size: int,\n        text_hidden_size: int,\n        projector_hidden_size: int | None,\n        patch_merge_bias: bool,\n        projector_hidden_act: str = \"gelu\",\n        quant_config: QuantizationConfig | None = None,\n        prefix: str = \"\",\n    ) -> None:\n        super().__init__()\n        self.spatial_merge_size = spatial_merge_size\n        mid = projector_hidden_size if projector_hidden_size else text_hidden_size\n        merge_in = text_hidden_size * spatial_merge_size**2\n        use_dp = is_vit_use_data_parallel()\n        self.linear_1 = ColumnParallelLinear(\n            merge_in,\n            mid,\n            bias=patch_merge_bias,\n            quant_config=quant_config,\n            prefix=f\"{prefix}.linear_1\",\n            disable_tp=use_dp,\n        )\n        self.act = get_act_fn(projector_hidden_act)\n        self.linear_2 = RowParallelLinear(\n            mid,\n            text_hidden_size,\n            bias=patch_merge_bias,\n            quant_config=quant_config,\n            prefix=f\"{prefix}.linear_2\",\n            disable_tp=use_dp,\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        # x: (N, text_hidden_size) → (N // merge_size², text_hidden_size)\n        x = x.reshape(x.shape[0] // (self.spatial_merge_size**2), -1)\n        x, _ = self.linear_1(x)\n        x = self.act(x)\n        x, _ = self.linear_2(x)\n        return x"
+      }
+    ],
+    "weights": [
+      {
+        "key": "patch_merge_mlp.linear_1.weight",
+        "shape": "逻辑形状见公式",
+        "dtype": "见文件头",
+        "shard": "索引目录"
+      },
+      {
+        "key": "patch_merge_mlp.linear_2.weight",
+        "shape": "逻辑形状见公式",
+        "dtype": "见文件头",
+        "shard": "索引目录"
+      }
+    ]
+  },
+  "fusion": {
+    "id": "flash-fusion",
+    "tone": "vision",
+    "kind": "io",
+    "kicker": "MULTIMODAL / OUTPUT",
+    "title": "Multimodal embedding fusion",
+    "summary": "视觉 embedding 替换输入序列中对应的图像／视频占位 token，与文本 embedding 一起进入语言 Decoder。参考图像为 576 token，动态输入数量会变化。",
+    "input": "text + vision embeddings + is_multimodal",
+    "inputShape": "[Nq,6144] + [N_vision,6144] + [Nq]",
+    "output": "inputs_embeds",
+    "outputShape": "[Nq,6144]，逻辑 [B,S,6144]",
+    "formula": "X_0=\\mathrm{Scatter}(E_{text},P_{merged},\\mathrm{vision\\ positions})",
+    "latex": "X_0=\\mathrm{Scatter}(E_{text},P_{merged},\\mathrm{vision\\ positions})",
+    "formulaNote": "逻辑数学解释；实际代码和量化布局以固定版本来源为准。",
+    "runtime": "Multimodal embedding fusion",
+    "source": "vllm/model_executor/models/interfaces.py · L493–528",
+    "sourceUrl": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/model_executor/models/interfaces.py#L493-L528",
+    "code": "inputs_embeds = embed_tokens(input_ids)\ninputs_embeds[vision_positions] = vision_embeddings",
+    "codeSections": [
+      {
+        "stage": "SOURCE · EXACT EXCERPT",
+        "title": "多模态 embedding：文本嵌入与占位替换",
+        "location": "vllm/model_executor/models/interfaces.py · L493–528",
+        "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/model_executor/models/interfaces.py#L493-L528",
+        "code": "    def embed_input_ids(\n        self,\n        input_ids: Tensor,\n        multimodal_embeddings: MultiModalEmbeddings | None = None,\n        *,\n        is_multimodal: Tensor | None = None,\n    ) -> Tensor:\n        \"\"\"\n        Apply token embeddings to `input_ids`.\n\n        If `multimodal_embeddings` is passed, scatter them into\n        `input_ids` according to the mask `is_multimodal`.\n\n        NOTE: If this model has multimodal tokens that are of vocabulary\n        (i.e., self._has_oov_mm_tokens=True), the input_ids will be copied\n        and masked to 0 during the forward pass for the text embeddings.\n        \"\"\"\n        from .utils import _merge_multimodal_embeddings\n\n        # Get text embeddings first; multimodal embeddings will clobber\n        # any invalid contents in the indices of multimodal embeddings\n        # for the in vocabulary and out of vocabulary case.\n        inputs_embeds = self._embed_text_input_ids(\n            input_ids,\n            self.get_language_model().embed_input_ids,\n            is_multimodal=is_multimodal,\n        )\n\n        if multimodal_embeddings is None or len(multimodal_embeddings) == 0:\n            return inputs_embeds\n\n        return _merge_multimodal_embeddings(\n            inputs_embeds=inputs_embeds,\n            multimodal_embeddings=multimodal_embeddings,\n            is_multimodal=_require_is_multimodal(is_multimodal),\n        )"
+      },
+      {
+        "stage": "SOURCE · EXACT EXCERPT",
+        "title": "按 is_multimodal mask 写入视觉 embedding",
+        "location": "vllm/model_executor/models/utils.py · L689–710",
+        "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/model_executor/models/utils.py#L689-L710",
+        "code": "def _merge_multimodal_embeddings(\n    inputs_embeds: torch.Tensor,\n    multimodal_embeddings: NestedTensors,\n    is_multimodal: torch.Tensor,\n) -> torch.Tensor:\n    \"\"\"\n    Merge `multimodal_embeddings` into `inputs_embeds` by overwriting the\n    positions in `inputs_embeds` corresponding to placeholder tokens in\n    `input_ids`.\n\n    Note:\n        This updates `inputs_embeds` in place.\n    \"\"\"\n    if len(multimodal_embeddings) == 0:\n        return inputs_embeds\n\n    mm_embeds_flat = _flatten_embeddings(multimodal_embeddings)\n    input_dtype = inputs_embeds.dtype\n\n    try:\n        # If is_multimodal is on CPU this avoids a D2H sync\n        inputs_embeds[is_multimodal] = mm_embeds_flat.to(dtype=input_dtype)"
+      }
+    ],
+    "weights": [
+      {
+        "key": "language_model.model.embed_tokens.weight",
+        "shape": "逻辑形状见公式",
+        "dtype": "见文件头",
+        "shard": "索引目录"
+      }
+    ]
+  },
+  "final": {
+    "id": "flash-final",
+    "tone": "vision",
+    "kind": "linear",
+    "kicker": "MULTIMODAL / OUTPUT",
+    "title": "Final Norm → LM Head",
+    "summary": "60 层 Decoder 后执行 Final Gemma RMSNorm，LM Head 生成 200064 维 logits。Embedding 与 LM Head 不共享权重。",
+    "input": "X60 / deferred hidden + residual",
+    "inputShape": "[B,S,6144]（逻辑）",
+    "output": "logits",
+    "outputShape": "[B,S,200064]（逻辑；运行时按所需 token 计算）",
+    "formula": "\\mathrm{logits}=\\mathrm{Norm}(X_{60})W_{LM}^\\top",
+    "latex": "\\mathrm{logits}=\\mathrm{Norm}(X_{60})W_{LM}^\\top",
+    "formulaNote": "公式中的X_60是逻辑合并后的输出；PP=1的真实final norm可先归并最后一层FFN partial并加residual。此阶段仅消费norm与lm_head权重；embedding位于输入阶段。",
+    "runtime": "Final Norm → LM Head",
+    "source": "vllm/models/minimax_m3/nvidia/model.py · L891–901",
+    "sourceUrl": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L891-L901",
+    "code": "hidden = final_norm(hidden)\nlogits = linear(hidden, lm_head_weight)",
+    "codeSections": [
+      {
+        "stage": "SOURCE · EXACT EXCERPT",
+        "title": "Final Norm：包含延迟残差合并",
+        "location": "vllm/models/minimax_m3/nvidia/model.py · L891–901",
+        "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L891-L901",
+        "code": "        if not get_pp_group().is_last_rank:\n            return IntermediateTensors(\n                {\"hidden_states\": hidden_states, \"residual\": residual}\n            )\n\n        if self.fuse_final_norm_allreduce:\n            hidden_states, _ = fused_allreduce_gemma_rms_norm(\n                hidden_states, residual, self.norm\n            )\n        else:\n            hidden_states, _ = self.norm(hidden_states, residual)"
+      },
+      {
+        "stage": "SOURCE · EXACT EXCERPT",
+        "title": "独立 LM Head 与 logits processor",
+        "location": "vllm/models/minimax_m3/nvidia/model.py · L1032–1041",
+        "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L1032-L1041",
+        "code": "        if get_pp_group().is_last_rank:\n            self.lm_head = ParallelLMHead(\n                config.vocab_size,\n                config.hidden_size,\n                quant_config=quant_config,\n                prefix=maybe_prefix(prefix, \"lm_head\"),\n            )\n        else:\n            self.lm_head = PPMissingLayer()\n        self.logits_processor = LogitsProcessor(config.vocab_size)"
+      },
+      {
+        "stage": "SOURCE · EXACT EXCERPT",
+        "title": "LM Head 的实际调用",
+        "location": "vllm/models/minimax_m3/nvidia/model.py · L1059–1063",
+        "url": "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L1059-L1063",
+        "code": "    def compute_logits(self, hidden_states: torch.Tensor) -> torch.Tensor | None:\n        return self.logits_processor(self.lm_head, hidden_states)\n\n    def compute_logits_local(self, hidden_states: torch.Tensor) -> torch.Tensor:\n        return self.logits_processor(self.lm_head, hidden_states, skip_gather=True)"
+      }
+    ],
+    "weights": [
+      {
+        "key": "language_model.model.norm.weight",
+        "shape": "逻辑形状见公式",
+        "dtype": "见文件头",
+        "shard": "索引目录"
+      },
+      {
+        "key": "language_model.lm_head.weight",
+        "shape": "逻辑形状见公式",
+        "dtype": "见文件头",
+        "shard": "索引目录"
+      }
+    ]
+  },
+  "target": {
+    "id": "flash-target",
+    "tone": "index",
+    "kind": "io",
+    "kicker": "DSPARK · CONFIG-VERIFIED",
+    "title": "Target hidden states",
+    "summary": "DSpark 配置从主模型的 5 个目标层取上下文特征。图示仅表达配置可验证的数据依赖；不把旧 MTP 当作 DSpark 实现。",
+    "input": "主模型目标层输出",
+    "inputShape": "5 × [...,6144]；目标 ids 见配置",
+    "output": "target features",
+    "outputShape": "具体运行时组织未核实",
+    "formula": "\\mathcal H=\\{X_3,X_{17},X_{31},X_{45},X_{59}\\}",
+    "latex": "\\mathcal H=\\{h^{(3)},h^{(17)},h^{(31)},h^{(45)},h^{(59)}\\}",
+    "formulaNote": "h^(l) 表示配置 target_layer_ids 指定的层输出特征；不是残差输入 X_l 的编号约定。仅配置结构已核实。",
+    "runtime": "DSparkMiniMaxDraftModel · configuration only",
+    "source": "官方 DSpark config",
+    "sourceUrl": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/dspark/config.json",
+    "code": "target_layer_ids = [3, 17, 31, 45, 59]\ncontext = capture_target_hidden_states(target_layer_ids)",
+    "codeSections": [
+      {
+        "stage": "CHECKPOINT · CONFIG VERIFIED",
+        "title": "DSpark 配置（执行细节未验证）",
+        "location": "dspark/config.json · text_config",
+        "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/dspark/config.json",
+        "code": "{\n  \"architectures\": [\n    \"DSparkMiniMaxDraftModel\"\n  ],\n  \"output_hidden_states\": false,\n  \"return_dict\": true,\n  \"dtype\": \"bfloat16\",\n  \"chunk_size_feed_forward\": 0,\n  \"is_encoder_decoder\": false,\n  \"id2label\": {\n    \"0\": \"LABEL_0\",\n    \"1\": \"LABEL_1\"\n  },\n  \"label2id\": {\n    \"LABEL_0\": 0,\n    \"LABEL_1\": 1\n  },\n  \"problem_type\": null,\n  \"_name_or_path\": \"\",\n  \"hidden_size\": 6144,\n  \"intermediate_size\": 3072,\n  \"num_hidden_layers\": 5,\n  \"num_attention_heads\": 64,\n  \"num_key_value_heads\": 4,\n  \"head_dim\": 128,\n  \"vocab_size\": 200064,\n  \"max_position_embeddings\": 1048576,\n  \"rms_norm_eps\": 0.000001,\n  \"use_gemma_norm\": true,\n  \"attention_output_gate\": false,\n  \"rope_theta\": 10000000,\n  \"rotary_dim\": 64,\n  \"partial_rotary_factor\": 0.5,\n  \"hidden_act\": \"swigluoai\",\n  \"use_qk_norm\": true,\n  \"tie_word_embeddings\": false,\n  \"dense_intermediate_size\": 12288,\n  \"shared_intermediate_size\": 3072,\n  \"num_local_experts\": 128,\n  \"num_experts_per_tok\": 4,\n  \"n_shared_experts\": 1,\n  \"scoring_func\": \"sigmoid\",\n  \"use_routing_bias\": true,\n  \"moe_layer_freq\": [\n    0,\n    0,\n    0,\n    0,\n    0\n  ],\n  \"qk_norm_type\": \"per_head\",\n  \"swiglu_alpha\": 1.702,\n  \"swiglu_limit\": 7,\n  \"routed_scaling_factor\": 2,\n  \"sparse_attention_config\": null,\n  \"dspark_block_size\": 7,\n  \"dspark_markov_rank\": 256,\n  \"dspark_markov_head_type\": \"vanilla\",\n  \"dspark_aux_gemm_precision\": \"bf16\",\n  \"dspark_noise_token_id\": 200058,\n  \"dspark_use_dense_ffn\": true,\n  \"dspark_ffn_hidden_size\": 12288,\n  \"dspark_target_layer_ids\": [\n    3,\n    17,\n    31,\n    45,\n    59\n  ],\n  \"dspark_config\": {\n    \"markov_rank\": 256,\n    \"markov_head_type\": \"vanilla\",\n    \"mask_token_id\": 200058,\n    \"hybrid_context_fusion\": false,\n    \"aux_gemm_precision\": \"bf16\",\n    \"use_dense_ffn\": true,\n    \"ffn_hidden_size\": 12288\n  },\n  \"dspark_hybrid_context_fusion\": false,\n  \"dflash_config\": {\n    \"num_hidden_layers\": 5,\n    \"num_target_layers\": 60,\n    \"context_source\": \"target_layers\",\n    \"block_size\": 7,\n    \"mask_token_id\": 200058,\n    \"target_layer_ids\": [\n      3,\n      17,\n      31,\n      45,\n      59\n    ],\n    \"layer_types\": [\n      \"sliding_attention\",\n      \"sliding_attention\",\n      \"sliding_attention\",\n      \"sliding_attention\",\n      \"sliding_attention\"\n    ],\n    \"sliding_window\": 4096\n  },\n  \"enable_confidence_head\": true,\n  \"confidence_head_with_markov\": true,\n  \"num_nextn_predict_layers\": 0,\n  \"use_mtp\": false,\n  \"num_mtp_modules\": 0,\n  \"layer_types\": [\n    \"sliding_attention\",\n    \"sliding_attention\",\n    \"sliding_attention\",\n    \"sliding_attention\",\n    \"sliding_attention\"\n  ],\n  \"sliding_window\": 4096,\n  \"v_head_dim\": 128,\n  \"swa_head_dim\": 128,\n  \"swa_v_head_dim\": 128,\n  \"model_type\": \"\",\n  \"output_attentions\": false\n}"
+      }
+    ],
+    "weights": []
+  },
+  "draft": {
+    "id": "flash-draft",
+    "tone": "index",
+    "kind": "activation",
+    "kicker": "DSPARK · CONFIG-VERIFIED",
+    "title": "DSpark draft × 5",
+    "summary": "独立 DSparkMiniMaxDraftModel，5 个 dense FFN 层。滑动注意力窗口为 4096，block size 7，use_mtp=false。本地 vLLM 的 minimax_m3/mtp.py 不能作为其执行依据。",
+    "input": "target features + draft tokens",
+    "inputShape": "配置 hidden=6144，block size=7",
+    "output": "draft hidden features",
+    "outputShape": "具体运行时组织未核实",
+    "formula": "\\mathrm{Draft}(\\mathcal H,\\mathrm{tokens};\\ B_d=7)",
+    "latex": "\\mathrm{Draft}(\\mathcal H,\\mathrm{tokens};\\ B_d=7)",
+    "formulaNote": "仅由独立草稿配置可核实的结构；未验证具体 DSpark 内核及接受采样细节。",
+    "runtime": "DSparkMiniMaxDraftModel · configuration only",
+    "source": "官方 DSpark config",
+    "sourceUrl": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/dspark/config.json",
+    "code": "# Configuration-level illustration\nnum_hidden_layers = 5\nsliding_window = 4096\nuse_mtp = False\nds_block_size = 7",
+    "codeSections": [
+      {
+        "stage": "CHECKPOINT · CONFIG VERIFIED",
+        "title": "DSpark 配置（执行细节未验证）",
+        "location": "dspark/config.json · text_config",
+        "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/dspark/config.json",
+        "code": "{\n  \"architectures\": [\n    \"DSparkMiniMaxDraftModel\"\n  ],\n  \"output_hidden_states\": false,\n  \"return_dict\": true,\n  \"dtype\": \"bfloat16\",\n  \"chunk_size_feed_forward\": 0,\n  \"is_encoder_decoder\": false,\n  \"id2label\": {\n    \"0\": \"LABEL_0\",\n    \"1\": \"LABEL_1\"\n  },\n  \"label2id\": {\n    \"LABEL_0\": 0,\n    \"LABEL_1\": 1\n  },\n  \"problem_type\": null,\n  \"_name_or_path\": \"\",\n  \"hidden_size\": 6144,\n  \"intermediate_size\": 3072,\n  \"num_hidden_layers\": 5,\n  \"num_attention_heads\": 64,\n  \"num_key_value_heads\": 4,\n  \"head_dim\": 128,\n  \"vocab_size\": 200064,\n  \"max_position_embeddings\": 1048576,\n  \"rms_norm_eps\": 0.000001,\n  \"use_gemma_norm\": true,\n  \"attention_output_gate\": false,\n  \"rope_theta\": 10000000,\n  \"rotary_dim\": 64,\n  \"partial_rotary_factor\": 0.5,\n  \"hidden_act\": \"swigluoai\",\n  \"use_qk_norm\": true,\n  \"tie_word_embeddings\": false,\n  \"dense_intermediate_size\": 12288,\n  \"shared_intermediate_size\": 3072,\n  \"num_local_experts\": 128,\n  \"num_experts_per_tok\": 4,\n  \"n_shared_experts\": 1,\n  \"scoring_func\": \"sigmoid\",\n  \"use_routing_bias\": true,\n  \"moe_layer_freq\": [\n    0,\n    0,\n    0,\n    0,\n    0\n  ],\n  \"qk_norm_type\": \"per_head\",\n  \"swiglu_alpha\": 1.702,\n  \"swiglu_limit\": 7,\n  \"routed_scaling_factor\": 2,\n  \"sparse_attention_config\": null,\n  \"dspark_block_size\": 7,\n  \"dspark_markov_rank\": 256,\n  \"dspark_markov_head_type\": \"vanilla\",\n  \"dspark_aux_gemm_precision\": \"bf16\",\n  \"dspark_noise_token_id\": 200058,\n  \"dspark_use_dense_ffn\": true,\n  \"dspark_ffn_hidden_size\": 12288,\n  \"dspark_target_layer_ids\": [\n    3,\n    17,\n    31,\n    45,\n    59\n  ],\n  \"dspark_config\": {\n    \"markov_rank\": 256,\n    \"markov_head_type\": \"vanilla\",\n    \"mask_token_id\": 200058,\n    \"hybrid_context_fusion\": false,\n    \"aux_gemm_precision\": \"bf16\",\n    \"use_dense_ffn\": true,\n    \"ffn_hidden_size\": 12288\n  },\n  \"dspark_hybrid_context_fusion\": false,\n  \"dflash_config\": {\n    \"num_hidden_layers\": 5,\n    \"num_target_layers\": 60,\n    \"context_source\": \"target_layers\",\n    \"block_size\": 7,\n    \"mask_token_id\": 200058,\n    \"target_layer_ids\": [\n      3,\n      17,\n      31,\n      45,\n      59\n    ],\n    \"layer_types\": [\n      \"sliding_attention\",\n      \"sliding_attention\",\n      \"sliding_attention\",\n      \"sliding_attention\",\n      \"sliding_attention\"\n    ],\n    \"sliding_window\": 4096\n  },\n  \"enable_confidence_head\": true,\n  \"confidence_head_with_markov\": true,\n  \"num_nextn_predict_layers\": 0,\n  \"use_mtp\": false,\n  \"num_mtp_modules\": 0,\n  \"layer_types\": [\n    \"sliding_attention\",\n    \"sliding_attention\",\n    \"sliding_attention\",\n    \"sliding_attention\",\n    \"sliding_attention\"\n  ],\n  \"sliding_window\": 4096,\n  \"v_head_dim\": 128,\n  \"swa_head_dim\": 128,\n  \"swa_v_head_dim\": 128,\n  \"model_type\": \"\",\n  \"output_attentions\": false\n}"
+      }
+    ],
+    "weights": []
+  },
+  "markov": {
+    "id": "flash-markov",
+    "tone": "index",
+    "kind": "activation",
+    "kicker": "DSPARK · CONFIG-VERIFIED",
+    "title": "Markov + confidence heads",
+    "summary": "官方 DSpark 配置启用置信度头，Markov rank 为 256。该页面不从配置推断未验证的采样细节或实际加速比。",
+    "input": "draft hidden features",
+    "inputShape": "hidden=6144；Markov rank=256（配置）",
+    "output": "Markov / confidence head outputs",
+    "outputShape": "具体运行时 shape 未核实",
+    "formula": "r_{Markov}=256",
+    "latex": "r_{Markov}=256",
+    "formulaNote": "仅由独立草稿配置可核实的结构；未验证具体 DSpark 内核及接受采样细节。",
+    "runtime": "DSparkMiniMaxDraftModel · configuration only",
+    "source": "官方 DSpark config",
+    "sourceUrl": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/dspark/config.json",
+    "code": "enable_confidence_head = True\nconfidence_head_with_markov = True\nds_markov_rank = 256",
+    "codeSections": [
+      {
+        "stage": "CHECKPOINT · CONFIG VERIFIED",
+        "title": "DSpark 配置（执行细节未验证）",
+        "location": "dspark/config.json · text_config",
+        "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/dspark/config.json",
+        "code": "{\n  \"architectures\": [\n    \"DSparkMiniMaxDraftModel\"\n  ],\n  \"output_hidden_states\": false,\n  \"return_dict\": true,\n  \"dtype\": \"bfloat16\",\n  \"chunk_size_feed_forward\": 0,\n  \"is_encoder_decoder\": false,\n  \"id2label\": {\n    \"0\": \"LABEL_0\",\n    \"1\": \"LABEL_1\"\n  },\n  \"label2id\": {\n    \"LABEL_0\": 0,\n    \"LABEL_1\": 1\n  },\n  \"problem_type\": null,\n  \"_name_or_path\": \"\",\n  \"hidden_size\": 6144,\n  \"intermediate_size\": 3072,\n  \"num_hidden_layers\": 5,\n  \"num_attention_heads\": 64,\n  \"num_key_value_heads\": 4,\n  \"head_dim\": 128,\n  \"vocab_size\": 200064,\n  \"max_position_embeddings\": 1048576,\n  \"rms_norm_eps\": 0.000001,\n  \"use_gemma_norm\": true,\n  \"attention_output_gate\": false,\n  \"rope_theta\": 10000000,\n  \"rotary_dim\": 64,\n  \"partial_rotary_factor\": 0.5,\n  \"hidden_act\": \"swigluoai\",\n  \"use_qk_norm\": true,\n  \"tie_word_embeddings\": false,\n  \"dense_intermediate_size\": 12288,\n  \"shared_intermediate_size\": 3072,\n  \"num_local_experts\": 128,\n  \"num_experts_per_tok\": 4,\n  \"n_shared_experts\": 1,\n  \"scoring_func\": \"sigmoid\",\n  \"use_routing_bias\": true,\n  \"moe_layer_freq\": [\n    0,\n    0,\n    0,\n    0,\n    0\n  ],\n  \"qk_norm_type\": \"per_head\",\n  \"swiglu_alpha\": 1.702,\n  \"swiglu_limit\": 7,\n  \"routed_scaling_factor\": 2,\n  \"sparse_attention_config\": null,\n  \"dspark_block_size\": 7,\n  \"dspark_markov_rank\": 256,\n  \"dspark_markov_head_type\": \"vanilla\",\n  \"dspark_aux_gemm_precision\": \"bf16\",\n  \"dspark_noise_token_id\": 200058,\n  \"dspark_use_dense_ffn\": true,\n  \"dspark_ffn_hidden_size\": 12288,\n  \"dspark_target_layer_ids\": [\n    3,\n    17,\n    31,\n    45,\n    59\n  ],\n  \"dspark_config\": {\n    \"markov_rank\": 256,\n    \"markov_head_type\": \"vanilla\",\n    \"mask_token_id\": 200058,\n    \"hybrid_context_fusion\": false,\n    \"aux_gemm_precision\": \"bf16\",\n    \"use_dense_ffn\": true,\n    \"ffn_hidden_size\": 12288\n  },\n  \"dspark_hybrid_context_fusion\": false,\n  \"dflash_config\": {\n    \"num_hidden_layers\": 5,\n    \"num_target_layers\": 60,\n    \"context_source\": \"target_layers\",\n    \"block_size\": 7,\n    \"mask_token_id\": 200058,\n    \"target_layer_ids\": [\n      3,\n      17,\n      31,\n      45,\n      59\n    ],\n    \"layer_types\": [\n      \"sliding_attention\",\n      \"sliding_attention\",\n      \"sliding_attention\",\n      \"sliding_attention\",\n      \"sliding_attention\"\n    ],\n    \"sliding_window\": 4096\n  },\n  \"enable_confidence_head\": true,\n  \"confidence_head_with_markov\": true,\n  \"num_nextn_predict_layers\": 0,\n  \"use_mtp\": false,\n  \"num_mtp_modules\": 0,\n  \"layer_types\": [\n    \"sliding_attention\",\n    \"sliding_attention\",\n    \"sliding_attention\",\n    \"sliding_attention\",\n    \"sliding_attention\"\n  ],\n  \"sliding_window\": 4096,\n  \"v_head_dim\": 128,\n  \"swa_head_dim\": 128,\n  \"swa_v_head_dim\": 128,\n  \"model_type\": \"\",\n  \"output_attentions\": false\n}"
+      }
+    ],
+    "weights": []
+  },
+  "verify": {
+    "id": "flash-verify",
+    "tone": "index",
+    "kind": "matmul",
+    "kicker": "DSPARK · CONFIG-VERIFIED",
+    "title": "Target verification",
+    "summary": "投机解码先生成候选，再由主模型验证。接受多少 token 取决于运行时和输入；block size 不等于保证的每步输出数。",
+    "input": "候选 token block + target logits",
+    "inputShape": "投机解码关系示意；实现未核实",
+    "output": "接受的 token 前缀",
+    "outputShape": "接受长度由运行时决定",
+    "formula": "\\mathrm{draft}\\longrightarrow\\mathrm{target\\ verify}\\longrightarrow\\mathrm{accept/reject}",
+    "latex": "\\mathrm{draft}\\longrightarrow\\mathrm{target\\ verify}\\longrightarrow\\mathrm{accept/reject}",
+    "formulaNote": "仅由独立草稿配置可核实的结构；未验证具体 DSpark 内核及接受采样细节。",
+    "runtime": "DSparkMiniMaxDraftModel · configuration only",
+    "source": "官方 DSpark config",
+    "sourceUrl": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/dspark/config.json",
+    "code": "candidates = draft(context)\nverified = target_verify(candidates)\n# acceptance logic belongs to the serving implementation",
+    "codeSections": [
+      {
+        "stage": "CHECKPOINT · CONFIG VERIFIED",
+        "title": "DSpark 配置（执行细节未验证）",
+        "location": "dspark/config.json · text_config",
+        "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/dspark/config.json",
+        "code": "{\n  \"architectures\": [\n    \"DSparkMiniMaxDraftModel\"\n  ],\n  \"output_hidden_states\": false,\n  \"return_dict\": true,\n  \"dtype\": \"bfloat16\",\n  \"chunk_size_feed_forward\": 0,\n  \"is_encoder_decoder\": false,\n  \"id2label\": {\n    \"0\": \"LABEL_0\",\n    \"1\": \"LABEL_1\"\n  },\n  \"label2id\": {\n    \"LABEL_0\": 0,\n    \"LABEL_1\": 1\n  },\n  \"problem_type\": null,\n  \"_name_or_path\": \"\",\n  \"hidden_size\": 6144,\n  \"intermediate_size\": 3072,\n  \"num_hidden_layers\": 5,\n  \"num_attention_heads\": 64,\n  \"num_key_value_heads\": 4,\n  \"head_dim\": 128,\n  \"vocab_size\": 200064,\n  \"max_position_embeddings\": 1048576,\n  \"rms_norm_eps\": 0.000001,\n  \"use_gemma_norm\": true,\n  \"attention_output_gate\": false,\n  \"rope_theta\": 10000000,\n  \"rotary_dim\": 64,\n  \"partial_rotary_factor\": 0.5,\n  \"hidden_act\": \"swigluoai\",\n  \"use_qk_norm\": true,\n  \"tie_word_embeddings\": false,\n  \"dense_intermediate_size\": 12288,\n  \"shared_intermediate_size\": 3072,\n  \"num_local_experts\": 128,\n  \"num_experts_per_tok\": 4,\n  \"n_shared_experts\": 1,\n  \"scoring_func\": \"sigmoid\",\n  \"use_routing_bias\": true,\n  \"moe_layer_freq\": [\n    0,\n    0,\n    0,\n    0,\n    0\n  ],\n  \"qk_norm_type\": \"per_head\",\n  \"swiglu_alpha\": 1.702,\n  \"swiglu_limit\": 7,\n  \"routed_scaling_factor\": 2,\n  \"sparse_attention_config\": null,\n  \"dspark_block_size\": 7,\n  \"dspark_markov_rank\": 256,\n  \"dspark_markov_head_type\": \"vanilla\",\n  \"dspark_aux_gemm_precision\": \"bf16\",\n  \"dspark_noise_token_id\": 200058,\n  \"dspark_use_dense_ffn\": true,\n  \"dspark_ffn_hidden_size\": 12288,\n  \"dspark_target_layer_ids\": [\n    3,\n    17,\n    31,\n    45,\n    59\n  ],\n  \"dspark_config\": {\n    \"markov_rank\": 256,\n    \"markov_head_type\": \"vanilla\",\n    \"mask_token_id\": 200058,\n    \"hybrid_context_fusion\": false,\n    \"aux_gemm_precision\": \"bf16\",\n    \"use_dense_ffn\": true,\n    \"ffn_hidden_size\": 12288\n  },\n  \"dspark_hybrid_context_fusion\": false,\n  \"dflash_config\": {\n    \"num_hidden_layers\": 5,\n    \"num_target_layers\": 60,\n    \"context_source\": \"target_layers\",\n    \"block_size\": 7,\n    \"mask_token_id\": 200058,\n    \"target_layer_ids\": [\n      3,\n      17,\n      31,\n      45,\n      59\n    ],\n    \"layer_types\": [\n      \"sliding_attention\",\n      \"sliding_attention\",\n      \"sliding_attention\",\n      \"sliding_attention\",\n      \"sliding_attention\"\n    ],\n    \"sliding_window\": 4096\n  },\n  \"enable_confidence_head\": true,\n  \"confidence_head_with_markov\": true,\n  \"num_nextn_predict_layers\": 0,\n  \"use_mtp\": false,\n  \"num_mtp_modules\": 0,\n  \"layer_types\": [\n    \"sliding_attention\",\n    \"sliding_attention\",\n    \"sliding_attention\",\n    \"sliding_attention\",\n    \"sliding_attention\"\n  ],\n  \"sliding_window\": 4096,\n  \"v_head_dim\": 128,\n  \"swa_head_dim\": 128,\n  \"swa_v_head_dim\": 128,\n  \"model_type\": \"\",\n  \"output_attentions\": false\n}"
+      }
+    ],
+    "weights": []
+  }
+}
