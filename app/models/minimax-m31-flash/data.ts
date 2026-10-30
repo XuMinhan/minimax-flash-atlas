@@ -7,6 +7,7 @@ const SPARSE = "https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f084
 import checkpoint from "./weight-evidence.json";
 type Meta={shape:string;dtype:string;shard:string;note?:string};
 const records=checkpoint as Record<string,Meta>;
+export const checkpointRecord=(key:string)=>records[key];
 export function layerShard(layer:number){return records[`language_model.model.layers.${layer}.input_layernorm.weight`]?.shard??"索引未核实";}
 export function verifyWeight(weight:import("../types").Weight):import("../types").Weight{
  const key=weight.key.replace(/(\.experts\.\d+\.w[123])\.weight$/, "$1.weight_packed");

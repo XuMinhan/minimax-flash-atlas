@@ -12,7 +12,8 @@
 - 注意力展开保留五路投影、Q/K/V 分支、Indexer 评分/选块、两套缓存、两种 mask、QK/scale/softmax/PV 和 O projection。
 - Dense FFN 拆解 Gate/Up、Split、非对称裁剪、SwiGLU-OAI、Down；MoE 拆解 Top-4 选路、路由权重、每专家 Gate/Up → SwiGLU-OAI → Down、加权归并及同样的共享专家链路。
 - 54 个算子/模块公式和逐节点证据；代码片段重新从用户提供的固定 vLLM 提交提取，非简单替换模型名称。
-- 完整 89,632 个 tensor keys / 48 分片的搜索目录；5,277 个实际 Safetensors 文件头条目。
+- 新增“权重与存储总结”：按用途、格式、逻辑/存储形状与精确 bytes 汇总，分开统计主模型和 DSpark；权重卡区分逻辑矩阵、checkpoint 打包和 runtime 分片。
+- 完整 89,632 个 tensor keys / 48 分片的搜索目录；全部 89,632 个实际 Safetensors 文件头条目，另有 97 个 DSpark 张量。
 - 视觉输入/输出链、独立 DSpark 配置说明，以及七张由 Archify typed JSON 生成的数据流补充图。
 - 原项目类型、构建、语义与路由测试保留，并新增 Flash 专属检查。
 

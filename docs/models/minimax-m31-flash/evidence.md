@@ -28,7 +28,7 @@ Content-Status: draft
 | s-packed | QKV + Index Projection | [B,S,6144] → [B,S,8192/TP+3·max(1,4/TP)·128+128] | [vllm/model_executor/layers/linear.py · L1396–1431](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/model_executor/layers/linear.py#L1396-L1431) | 5 个绑定；实际索引核对 |
 | s-split | Split 5 outputs | [B,S,8192/TP+3·max(1,4/TP)·128+128] → Q:[B,64/TP,S,128]; K,V:[B,max(1,4/TP),S,128]; Qidx:[B,N_idx,rank,S,D_idx]; Kidx:[B,S,128] | [vllm/model_executor/layers/linear.py · L1396–1431](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/model_executor/layers/linear.py#L1396-L1431) | 0 个绑定；实际索引核对 |
 | s-idxnorm | Index Q/K Gemma RMSNorm + RoPE | [B,N_idx,rank,S,D_idx] · [B,S,D_idx] → [B,N_idx,rank,S,D_idx] · [B,S,D_idx] | [vllm/models/minimax_m3/nvidia/model.py · L615–640](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L615-L640) | 2 个绑定；实际索引核对 |
-| s-idxcache | Index K Cache · key-only | [B,S,128] + [Nq] → key-only pages · [T,128] | [vllm/models/minimax_m3/common/indexer.py · L139–153](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/indexer.py#L139-L153) | 0 个绑定；实际索引核对 |
+| s-idxcache | Index K Cache · key-only | [B,S,128] + [Nq] → [T,128]（逻辑历史视图，不指定 backend 物理页布局） | [vllm/models/minimax_m3/common/indexer.py · L139–153](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/indexer.py#L139-L153) | 0 个绑定；实际索引核对 |
 | s-idxscore | Index Q × cached Kᵀ | [B,max(1,4/TP),S,128] · [B,T,128] → [B,max(1,4/TP),S,T] | [vllm/models/minimax_m3/common/ops/index_topk.py · L145–163](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/index_topk.py#L145-L163) | 0 个绑定；实际索引核对 |
 | s-idxmask | Mask Future Index Keys | [B,max(1,4/TP),S,T] + [B,S] → [B,max(1,4/TP),S,T] | [vllm/models/minimax_m3/common/ops/index_topk.py · L145–163](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/index_topk.py#L145-L163) | 0 个绑定；实际索引核对 |
 | s-blockmax | Block Max · B_block keys | [B,max(1,4/TP),S,T] → [B,max(1,4/TP),S,⌈T/128⌉] | [vllm/models/minimax_m3/common/ops/index_topk.py · L145–163](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/common/ops/index_topk.py#L145-L163) | 0 个绑定；实际索引核对 |
@@ -68,7 +68,9 @@ Content-Status: draft
 
 ## 权重证据分层
 
-`public/flash-data/weights.json` 无损重建原始 89,632 个 key → 分片映射，包含 48 个主模型文件，总 tensor bytes 250,103,411,200。`tensor-shapes.json` 是实际读取分片 1、2、48 的 5,277 个 header 条目。模型的 `weight-evidence.json` 将同配置层的已读 shape/dtype 推导明确标为推导，分片始终来自完整索引；不把推导写成文件头实测。NVFP4 权重使用 w1/w3/w2.weight_packed，U8 每字节存两个值。
+`public/flash-data/weights.json` 无损重建 89,632 个主模型 key → 48 分片映射。现在已逐一读取全部 48 个 safetensors 文件头，`tensor-shapes.json` 为全部 89,632 个条目，记录存储 shape、dtype 和 data_offsets 差值 bytes；总和严格等于索引声明的 250,103,411,200 bytes。另读取 DSpark 独立 1 个文件头，97 个条目、2,301,852,674 bytes，单独保存在 `dspark-tensors.json`。
+
+`weight-summary.json` 由这两份元数据按模块/运算/格式/用途分组，scale 与非 scale 张量分列，所有 key 各计一次。`header-provenance.json` 给出固定 revision、各主分片 header 哈希与来源；未下载 tensor payload。模型页 `weight-evidence.json` 的可见绑定全部由完整文件头直接核实，不再以其他层推导代替。逻辑形状解释、NVFP4 打包、MXFP8 scale、TP/EP 及 KV cache 的不同口径详见 [权重与存储](weight-storage.md)。
 
 ## 后端范围
 

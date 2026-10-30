@@ -16,3 +16,5 @@ Content-Status: draft
 - [七张 Archify typed JSON](diagrams/overview.json)：overview、indexer、attention、dense-ffn、moe、vision、dspark。
 
 范围：Flash text/image/video 架构、60 层 MSA 与两种 FFN、NVIDIA 模型层及通用 Triton 数学参考、量化权重元数据、视觉塔；DSpark 为独立配置结构解释。硬件专用内核、AMD/Ascend 和性能不在已验证范围。DSpark 不以本地旧 MTP 实现充当依据。
+
+- [权重与存储：逻辑形状、packed 容器、scale 与精确数据量](weight-storage.md)

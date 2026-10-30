@@ -30,7 +30,7 @@ try{
  });
  test('Flash inventory losslessly reconstructs all 89632 tensor keys in 48 shards',()=>{
   assert.equal(index.rows.length,89632);assert.equal(keys.size,89632);assert.equal(new Set(keys.values()).size,48);
-  assert.equal(index.totalBytes,250103411200);assert.equal(Object.keys(shapes).length,5277);
+  assert.equal(index.totalBytes,250103411200);assert.equal(Object.keys(shapes).length,89632);
   for(const [k,m] of Object.entries(shapes))assert.equal(keys.get(k),`model-${String(m.shard).padStart(5,'0')}-of-00048.safetensors`);
  });
  test('Flash config reference includes quantization and independent DSpark settings',()=>{
@@ -98,5 +98,57 @@ try{
    const registry=json('public/flash-data/diagram-provenance.json');const d=registry[name];
    assert.equal(createHash('sha256').update(read(file)).digest('hex'),d.sha256);assert.equal(d.gates['browser-check'],'pass');
   }
+ });
+ const {tensorLayout}=await server.ssrLoadModule('/app/models/minimax-m31-flash/storage.ts');
+ const {WeightSummary}=await server.ssrLoadModule('/app/models/minimax-m31-flash/weight-summary.tsx');
+ test('Every main-model tensor has complete header metadata and byte totals reconcile to the index',()=>{
+  let bytes=0,packed=0;
+  for(const [key,m] of Object.entries(shapes)){
+   assert.equal(keys.get(key),`model-${String(m.shard).padStart(5,'0')}-of-00048.safetensors`);
+   const elementBytes={U8:1,F8_E4M3:1,BF16:2,F32:4}[m.dtype];assert.ok(elementBytes,key);
+   assert.equal(m.bytes,m.shape.reduce((a,b)=>a*b,1)*elementBytes,key);bytes+=m.bytes;
+   if(key.endsWith('weight_packed'))packed++;
+  }
+  assert.equal(bytes,index.totalBytes);assert.equal(packed,57*128*3);
+ });
+ test('FP4 packing, MXFP8 scales and TP shapes remain in separate display domains',()=>{
+  const key='language_model.model.layers.3.block_sparse_moe.experts.0.w2.weight_packed',l=tensorLayout(key,shapes[key]);
+  assert.deepEqual(l.logicalShape,[6144,3072]);assert.deepEqual(l.storageShape,[6144,1536]);assert.equal(l.bytes,9437184);
+  const scaleKey='language_model.model.layers.0.mlp.down_proj.weight_scale_inv',scale=tensorLayout(scaleKey,shapes[scaleKey]);
+  assert.equal(scale.fp4,false);assert.equal(scale.aux,true);assert.deepEqual(scale.logicalShape,[6144,384]);assert.match(scale.format,/E8M0/);
+  for(const [layer,id] of [[3,'expertdown'],[0,'down'],[3,'packed']]){
+   const html=renderToStaticMarkup(createElement(DetailPanel,{node:flashGraph(layer)[id],tab:'io',setTab:()=>{},pinned:true,onClear:()=>{},expanded:'ffn',layerType:layer?'sparse':'dense'}));
+   assert.match(html,/逻辑符号 · 计算矩阵/);assert.match(html,/逻辑尺寸 · 配置代入/);assert.match(html,/checkpoint 存储尺寸/);assert.match(html,/运行时布局另列/);
+   assert.doesNotMatch(html,/<i>实际<\/i>|TP shard/);
+  }
+ });
+ test('Weight summary covers both checkpoints and includes auxiliary scale bytes exactly once',()=>{
+  const summary=json('public/flash-data/weight-summary.json'),draftMeta=json('public/flash-data/dspark-tensors.json');
+  for(const [id,metadata] of [['main',shapes],['dspark',draftMeta]]){
+   const stats=summary.models.find(m=>m.id===id),groups=summary.groups.filter(g=>g.model===id);
+   assert.equal(stats.bytes,Object.values(metadata).reduce((n,m)=>n+m.bytes,0));assert.equal(stats.parameterBytes+stats.auxBytes,stats.bytes);
+   assert.equal(groups.reduce((n,g)=>n+g.bytes,0),stats.bytes);assert.equal(groups.reduce((n,g)=>n+g.tensors,0),Object.keys(metadata).length);
+   const covered=Object.keys(metadata).filter(k=>groups.some(g=>g.patterns.some(p=>new RegExp('^'+p.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace('\\{l\\}','\\d+').replace('\\{e\\}','\\d+')+'$').test(k))));
+   assert.equal(covered.length,Object.keys(metadata).length);
+  }
+  assert.equal(summary.models[1].bytes,2301852674);assert.equal(Object.keys(draftMeta).length,97);
+  const html=renderToStaticMarkup(createElement(WeightSummary,{initialData:summary}));
+  assert.match(html,/250,103,411,200/);assert.match(html,/checkpoint 存储尺寸/);assert.match(html,/10,616,840/);assert.match(html,/单卡显存峰值/);assert.match(html,/DSpark/);
+ });
+ test('Every logical weight symbol evaluates to its own module dimensions',()=>{
+  const draftMeta=json('public/flash-data/dspark-tensors.json');let visionQKV=0;
+  for(const metadata of [shapes,draftMeta])for(const [key,m] of Object.entries(metadata)){
+   const layout=tensorLayout(key,m);if(layout.aux)continue;
+   const terms=layout.logicalSymbol.slice(1,-1);
+   const evaluated=terms?terms.split(',').map(term=>term.split('·').reduce((n,name)=>{assert.ok(name in layout.symbolValues,`${key}: undefined ${name}`);return n*layout.symbolValues[name]},1)):[];
+   assert.deepEqual(evaluated,layout.logicalShape,key);
+   if(key.startsWith('vision_tower.')&&/self_attn\.[qkv]_proj\.weight$/.test(key)){
+    visionQKV++;assert.equal(layout.logicalSymbol,'[D_v,D_v]');assert.equal(layout.symbolValues.D_v,1280);assert.equal('H' in layout.symbolValues,false);
+   }
+   if(key.includes('shared_experts.')&&key.endsWith('.weight'))assert.equal(layout.symbolValues.I_shared,3072);
+  }
+  assert.equal(visionQKV,32*3);
+  const {groups}=json('public/flash-data/weight-summary.json');
+  for(const group of groups)for(const example of group.examples)if(example.logicalShape)assert.ok(example.symbolDefinitions,example.key);
  });
 }finally{await server.close()}

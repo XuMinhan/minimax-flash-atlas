@@ -1,0 +1,2257 @@
+{
+  "revision": "262ae6830934f3512211081b8a3f16425b93a239",
+  "method": "Exact sum of safetensors header data_offsets[end]-data_offsets[start]; each key counted once; no tensor payload downloaded",
+  "models": [
+    {
+      "id": "main",
+      "bytes": 250103411200,
+      "tensors": 89632,
+      "auxBytes": 26150317056,
+      "parameterBytes": 223953094144,
+      "parameterValues": 427051937408
+    },
+    {
+      "id": "dspark",
+      "bytes": 2301852674,
+      "tensors": 97,
+      "auxBytes": 52101120,
+      "parameterBytes": 2249751554,
+      "parameterValues": 1958493697
+    }
+  ],
+  "groups": [
+    {
+      "model": "main",
+      "module": "L3–59 路由专家 · Top-4",
+      "operation": "Gate 投影",
+      "role": "矩阵权重",
+      "format": "NVFP4 · FP4 E2M1 codes",
+      "dtype": "U8",
+      "bytes": 68853694464,
+      "tensors": 7296,
+      "values": 137707388928,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.experts.0.w1.weight_packed",
+          "logicalSymbol": "[I,H]",
+          "symbolDefinitions": "H=6144 · I=3072",
+          "logicalShape": "[3072,6144]",
+          "storageShape": "[3072,3072]",
+          "bytes": 9437184,
+          "note": "仅沿输入轴打包：2 个 4-bit FP4 编码 / 1 个 U8 字节。相对每值占 1 字节的数组，主权重 payload 字节数为一半（不含 scale）；逻辑输入通道数保持不变；还需 block/global scale。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w1.weight_packed"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w1.weight_packed"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 路由专家 · Top-4",
+      "operation": "Down 投影",
+      "role": "矩阵权重",
+      "format": "NVFP4 · FP4 E2M1 codes",
+      "dtype": "U8",
+      "bytes": 68853694464,
+      "tensors": 7296,
+      "values": 137707388928,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.experts.0.w2.weight_packed",
+          "logicalSymbol": "[H,I]",
+          "symbolDefinitions": "H=6144 · I=3072",
+          "logicalShape": "[6144,3072]",
+          "storageShape": "[6144,1536]",
+          "bytes": 9437184,
+          "note": "仅沿输入轴打包：2 个 4-bit FP4 编码 / 1 个 U8 字节。相对每值占 1 字节的数组，主权重 payload 字节数为一半（不含 scale）；逻辑输入通道数保持不变；还需 block/global scale。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w2.weight_packed"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w2.weight_packed"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 路由专家 · Top-4",
+      "operation": "Up 投影",
+      "role": "矩阵权重",
+      "format": "NVFP4 · FP4 E2M1 codes",
+      "dtype": "U8",
+      "bytes": 68853694464,
+      "tensors": 7296,
+      "values": 137707388928,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.experts.0.w3.weight_packed",
+          "logicalSymbol": "[I,H]",
+          "symbolDefinitions": "H=6144 · I=3072",
+          "logicalShape": "[3072,6144]",
+          "storageShape": "[3072,3072]",
+          "bytes": 9437184,
+          "note": "仅沿输入轴打包：2 个 4-bit FP4 编码 / 1 个 U8 字节。相对每值占 1 字节的数组，主权重 payload 字节数为一半（不含 scale）；逻辑输入通道数保持不变；还需 block/global scale。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w3.weight_packed"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w3.weight_packed"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 路由专家 · Top-4",
+      "operation": "Gate 投影",
+      "role": "权重量化辅助 scale",
+      "format": "F8_E4M3 · scale 元数据",
+      "dtype": "F8_E4M3",
+      "bytes": 8606711808,
+      "tensors": 7296,
+      "values": 8606711808,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.experts.0.w1.weight_scale",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=3072 · d1=384",
+          "logicalShape": null,
+          "storageShape": "[3072,384]",
+          "bytes": 1179648,
+          "note": "辅助量化张量；其形状表示 scale 的组织方式，不代表矩阵的输入/输出宽度。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w1.weight_scale"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w1.weight_scale"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 路由专家 · Top-4",
+      "operation": "Down 投影",
+      "role": "权重量化辅助 scale",
+      "format": "F8_E4M3 · scale 元数据",
+      "dtype": "F8_E4M3",
+      "bytes": 8606711808,
+      "tensors": 7296,
+      "values": 8606711808,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.experts.0.w2.weight_scale",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=6144 · d1=192",
+          "logicalShape": null,
+          "storageShape": "[6144,192]",
+          "bytes": 1179648,
+          "note": "辅助量化张量；其形状表示 scale 的组织方式，不代表矩阵的输入/输出宽度。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w2.weight_scale"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w2.weight_scale"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 路由专家 · Top-4",
+      "operation": "Up 投影",
+      "role": "权重量化辅助 scale",
+      "format": "F8_E4M3 · scale 元数据",
+      "dtype": "F8_E4M3",
+      "bytes": 8606711808,
+      "tensors": 7296,
+      "values": 8606711808,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.experts.0.w3.weight_scale",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=3072 · d1=384",
+          "logicalShape": null,
+          "storageShape": "[3072,384]",
+          "bytes": 1179648,
+          "note": "辅助量化张量；其形状表示 scale 的组织方式，不代表矩阵的输入/输出宽度。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w3.weight_scale"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w3.weight_scale"
+    },
+    {
+      "model": "main",
+      "module": "L0–59 主 Attention · Q/K/V/O",
+      "operation": "O 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 3019898880,
+      "tensors": 60,
+      "values": 3019898880,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.self_attn.o_proj.weight",
+          "logicalSymbol": "[H,N_h·D_h]",
+          "symbolDefinitions": "H=6144 · N_h=64 · D_h=128",
+          "logicalShape": "[6144,8192]",
+          "storageShape": "[6144,8192]",
+          "bytes": 50331648,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.self_attn.o_proj.weight"
+      ],
+      "pattern": "language_model.model.layers.{l}.self_attn.o_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "L0–59 主 Attention · Q/K/V/O",
+      "operation": "Q 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 3019898880,
+      "tensors": 60,
+      "values": 3019898880,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.self_attn.q_proj.weight",
+          "logicalSymbol": "[N_h·D_h,H]",
+          "symbolDefinitions": "H=6144 · N_h=64 · D_h=128",
+          "logicalShape": "[8192,6144]",
+          "storageShape": "[8192,6144]",
+          "bytes": 50331648,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.self_attn.q_proj.weight"
+      ],
+      "pattern": "language_model.model.layers.{l}.self_attn.q_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "LM Head · 词表 logits",
+      "operation": "词表输出",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 2458386432,
+      "tensors": 1,
+      "values": 1229193216,
+      "examples": [
+        {
+          "key": "language_model.lm_head.weight",
+          "logicalSymbol": "[V,H]",
+          "symbolDefinitions": "H=6144 · V=200064",
+          "logicalShape": "[200064,6144]",
+          "storageShape": "[200064,6144]",
+          "bytes": 2458386432,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "language_model.lm_head.weight"
+      ],
+      "pattern": "language_model.lm_head.weight"
+    },
+    {
+      "model": "main",
+      "module": "Token Embedding · 输入查表",
+      "operation": "Embedding 查表",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 2458386432,
+      "tensors": 1,
+      "values": 1229193216,
+      "examples": [
+        {
+          "key": "language_model.model.embed_tokens.weight",
+          "logicalSymbol": "[V,H]",
+          "symbolDefinitions": "H=6144 · V=200064",
+          "logicalShape": "[200064,6144]",
+          "storageShape": "[200064,6144]",
+          "bytes": 2458386432,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.embed_tokens.weight"
+      ],
+      "pattern": "language_model.model.embed_tokens.weight"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 共享专家 · 始终参与",
+      "operation": "Down 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 1075838976,
+      "tensors": 57,
+      "values": 1075838976,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.shared_experts.down_proj.weight",
+          "logicalSymbol": "[H,I_shared]",
+          "symbolDefinitions": "H=6144 · I_shared=3072",
+          "logicalShape": "[6144,3072]",
+          "storageShape": "[6144,3072]",
+          "bytes": 18874368,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.shared_experts.down_proj.weight"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.shared_experts.down_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 共享专家 · 始终参与",
+      "operation": "Gate 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 1075838976,
+      "tensors": 57,
+      "values": 1075838976,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.shared_experts.gate_proj.weight",
+          "logicalSymbol": "[I_shared,H]",
+          "symbolDefinitions": "H=6144 · I_shared=3072",
+          "logicalShape": "[3072,6144]",
+          "storageShape": "[3072,6144]",
+          "bytes": 18874368,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.shared_experts.gate_proj.weight"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.shared_experts.gate_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 共享专家 · 始终参与",
+      "operation": "Up 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 1075838976,
+      "tensors": 57,
+      "values": 1075838976,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.shared_experts.up_proj.weight",
+          "logicalSymbol": "[I_shared,H]",
+          "symbolDefinitions": "H=6144 · I_shared=3072",
+          "logicalShape": "[3072,6144]",
+          "storageShape": "[3072,6144]",
+          "bytes": 18874368,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.shared_experts.up_proj.weight"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.shared_experts.up_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "视觉 ViT · 图像/视频编码",
+      "operation": "mlp.fc1",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 419430400,
+      "tensors": 32,
+      "values": 209715200,
+      "examples": [
+        {
+          "key": "vision_tower.vision_model.encoder.layers.0.mlp.fc1.weight",
+          "logicalSymbol": "[I_v,D_v]",
+          "symbolDefinitions": "D_v=1280 · I_v=5120",
+          "logicalShape": "[5120,1280]",
+          "storageShape": "[5120,1280]",
+          "bytes": 13107200,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "vision_tower.vision_model.encoder.layers.{l}.mlp.fc1.weight"
+      ],
+      "pattern": "vision_tower.vision_model.encoder.layers.{l}.mlp.fc1.weight"
+    },
+    {
+      "model": "main",
+      "module": "视觉 ViT · 图像/视频编码",
+      "operation": "mlp.fc2",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 419430400,
+      "tensors": 32,
+      "values": 209715200,
+      "examples": [
+        {
+          "key": "vision_tower.vision_model.encoder.layers.0.mlp.fc2.weight",
+          "logicalSymbol": "[D_v,I_v]",
+          "symbolDefinitions": "D_v=1280 · I_v=5120",
+          "logicalShape": "[1280,5120]",
+          "storageShape": "[1280,5120]",
+          "bytes": 13107200,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "vision_tower.vision_model.encoder.layers.{l}.mlp.fc2.weight"
+      ],
+      "pattern": "vision_tower.vision_model.encoder.layers.{l}.mlp.fc2.weight"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "dspark.fc",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 377487360,
+      "tensors": 1,
+      "values": 188743680,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.fc.weight",
+          "logicalSymbol": "[d0,d1]",
+          "symbolDefinitions": "d0=6144 · d1=30720",
+          "logicalShape": "[6144,30720]",
+          "storageShape": "[6144,30720]",
+          "bytes": 377487360,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.fc.weight"
+      ],
+      "pattern": "language_model.model.dspark.fc.weight"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "Down 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 377487360,
+      "tensors": 5,
+      "values": 377487360,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.layers.0.decoder_layer.mlp.down_proj.weight",
+          "logicalSymbol": "[H,I_dense]",
+          "symbolDefinitions": "H=6144 · I_dense=12288",
+          "logicalShape": "[6144,12288]",
+          "storageShape": "[6144,12288]",
+          "bytes": 75497472,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.layers.{l}.decoder_layer.mlp.down_proj.weight"
+      ],
+      "pattern": "language_model.model.dspark.layers.{l}.decoder_layer.mlp.down_proj.weight"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "Gate 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 377487360,
+      "tensors": 5,
+      "values": 377487360,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.layers.0.decoder_layer.mlp.gate_proj.weight",
+          "logicalSymbol": "[I_dense,H]",
+          "symbolDefinitions": "H=6144 · I_dense=12288",
+          "logicalShape": "[12288,6144]",
+          "storageShape": "[12288,6144]",
+          "bytes": 75497472,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.layers.{l}.decoder_layer.mlp.gate_proj.weight"
+      ],
+      "pattern": "language_model.model.dspark.layers.{l}.decoder_layer.mlp.gate_proj.weight"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "Up 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 377487360,
+      "tensors": 5,
+      "values": 377487360,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.layers.0.decoder_layer.mlp.up_proj.weight",
+          "logicalSymbol": "[I_dense,H]",
+          "symbolDefinitions": "H=6144 · I_dense=12288",
+          "logicalShape": "[12288,6144]",
+          "storageShape": "[12288,6144]",
+          "bytes": 75497472,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.layers.{l}.decoder_layer.mlp.up_proj.weight"
+      ],
+      "pattern": "language_model.model.dspark.layers.{l}.decoder_layer.mlp.up_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "Patch Merger · 合并空间 patch",
+      "operation": "patch_merge_mlp.linear_1",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 301989888,
+      "tensors": 1,
+      "values": 150994944,
+      "examples": [
+        {
+          "key": "patch_merge_mlp.linear_1.weight",
+          "logicalSymbol": "[d0,d1]",
+          "symbolDefinitions": "d0=6144 · d1=24576",
+          "logicalShape": "[6144,24576]",
+          "storageShape": "[6144,24576]",
+          "bytes": 301989888,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "patch_merge_mlp.linear_1.weight"
+      ],
+      "pattern": "patch_merge_mlp.linear_1.weight"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "O 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 251658240,
+      "tensors": 5,
+      "values": 251658240,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.layers.0.decoder_layer.self_attn.o_proj.weight",
+          "logicalSymbol": "[H,N_h·D_h]",
+          "symbolDefinitions": "H=6144 · N_h=64 · D_h=128",
+          "logicalShape": "[6144,8192]",
+          "storageShape": "[6144,8192]",
+          "bytes": 50331648,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.o_proj.weight"
+      ],
+      "pattern": "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.o_proj.weight"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "Q 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 251658240,
+      "tensors": 5,
+      "values": 251658240,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.layers.0.decoder_layer.self_attn.q_proj.weight",
+          "logicalSymbol": "[N_h·D_h,H]",
+          "symbolDefinitions": "H=6144 · N_h=64 · D_h=128",
+          "logicalShape": "[8192,6144]",
+          "storageShape": "[8192,6144]",
+          "bytes": 50331648,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.q_proj.weight"
+      ],
+      "pattern": "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.q_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "L0–2 Dense FFN · 非路由 MLP",
+      "operation": "Down 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 226492416,
+      "tensors": 3,
+      "values": 226492416,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.mlp.down_proj.weight",
+          "logicalSymbol": "[H,I_dense]",
+          "symbolDefinitions": "H=6144 · I_dense=12288",
+          "logicalShape": "[6144,12288]",
+          "storageShape": "[6144,12288]",
+          "bytes": 75497472,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.mlp.down_proj.weight"
+      ],
+      "pattern": "language_model.model.layers.{l}.mlp.down_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "L0–2 Dense FFN · 非路由 MLP",
+      "operation": "Gate 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 226492416,
+      "tensors": 3,
+      "values": 226492416,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.mlp.gate_proj.weight",
+          "logicalSymbol": "[I_dense,H]",
+          "symbolDefinitions": "H=6144 · I_dense=12288",
+          "logicalShape": "[12288,6144]",
+          "storageShape": "[12288,6144]",
+          "bytes": 75497472,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.mlp.gate_proj.weight"
+      ],
+      "pattern": "language_model.model.layers.{l}.mlp.gate_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "L0–2 Dense FFN · 非路由 MLP",
+      "operation": "Up 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 226492416,
+      "tensors": 3,
+      "values": 226492416,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.mlp.up_proj.weight",
+          "logicalSymbol": "[I_dense,H]",
+          "symbolDefinitions": "H=6144 · I_dense=12288",
+          "logicalShape": "[12288,6144]",
+          "storageShape": "[12288,6144]",
+          "bytes": 75497472,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.mlp.up_proj.weight"
+      ],
+      "pattern": "language_model.model.layers.{l}.mlp.up_proj.weight"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "草稿 Markov 参数（key 标识）",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 204865536,
+      "tensors": 2,
+      "values": 102432768,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.markov_head.markov_w1.weight",
+          "logicalSymbol": "[d0,d1]",
+          "symbolDefinitions": "d0=200064 · d1=256",
+          "logicalShape": "[200064,256]",
+          "storageShape": "[200064,256]",
+          "bytes": 102432768,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.markov_head.markov_w1.weight",
+        "language_model.model.dspark.markov_head.markov_w2.weight"
+      ],
+      "pattern": "language_model.model.dspark.markov_head.markov_w1.weight"
+    },
+    {
+      "model": "main",
+      "module": "L0–59 Indexer · 选 KV blocks",
+      "operation": "Index Q 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 188743680,
+      "tensors": 60,
+      "values": 188743680,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.self_attn.index_q_proj.weight",
+          "logicalSymbol": "[N_idx·D_idx,H]",
+          "symbolDefinitions": "H=6144 · N_idx=4 · D_idx=128",
+          "logicalShape": "[512,6144]",
+          "storageShape": "[512,6144]",
+          "bytes": 3145728,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.self_attn.index_q_proj.weight"
+      ],
+      "pattern": "language_model.model.layers.{l}.self_attn.index_q_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "L0–59 主 Attention · Q/K/V/O",
+      "operation": "K 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 188743680,
+      "tensors": 60,
+      "values": 188743680,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.self_attn.k_proj.weight",
+          "logicalSymbol": "[N_kv·D_h,H]",
+          "symbolDefinitions": "H=6144 · N_kv=4 · D_h=128",
+          "logicalShape": "[512,6144]",
+          "storageShape": "[512,6144]",
+          "bytes": 3145728,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.self_attn.k_proj.weight"
+      ],
+      "pattern": "language_model.model.layers.{l}.self_attn.k_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "L0–59 主 Attention · Q/K/V/O",
+      "operation": "V 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 188743680,
+      "tensors": 60,
+      "values": 188743680,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.self_attn.v_proj.weight",
+          "logicalSymbol": "[N_kv·D_h,H]",
+          "symbolDefinitions": "H=6144 · N_kv=4 · D_h=128",
+          "logicalShape": "[512,6144]",
+          "storageShape": "[512,6144]",
+          "bytes": 3145728,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.self_attn.v_proj.weight"
+      ],
+      "pattern": "language_model.model.layers.{l}.self_attn.v_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 Router · 专家选择",
+      "operation": "Router logits",
+      "role": "权重 / Norm 参数",
+      "format": "F32",
+      "dtype": "F32",
+      "bytes": 179306496,
+      "tensors": 57,
+      "values": 44826624,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.gate.weight",
+          "logicalSymbol": "[E,H]",
+          "symbolDefinitions": "H=6144 · E=128",
+          "logicalShape": "[128,6144]",
+          "storageShape": "[128,6144]",
+          "bytes": 3145728,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.gate.weight"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.gate.weight"
+    },
+    {
+      "model": "main",
+      "module": "视觉 ViT · 图像/视频编码",
+      "operation": "K 投影",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 104857600,
+      "tensors": 32,
+      "values": 52428800,
+      "examples": [
+        {
+          "key": "vision_tower.vision_model.encoder.layers.0.self_attn.k_proj.weight",
+          "logicalSymbol": "[D_v,D_v]",
+          "symbolDefinitions": "D_v=1280",
+          "logicalShape": "[1280,1280]",
+          "storageShape": "[1280,1280]",
+          "bytes": 3276800,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "vision_tower.vision_model.encoder.layers.{l}.self_attn.k_proj.weight"
+      ],
+      "pattern": "vision_tower.vision_model.encoder.layers.{l}.self_attn.k_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "视觉 ViT · 图像/视频编码",
+      "operation": "self_attn.out_proj",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 104857600,
+      "tensors": 32,
+      "values": 52428800,
+      "examples": [
+        {
+          "key": "vision_tower.vision_model.encoder.layers.0.self_attn.out_proj.weight",
+          "logicalSymbol": "[D_v,D_v]",
+          "symbolDefinitions": "D_v=1280",
+          "logicalShape": "[1280,1280]",
+          "storageShape": "[1280,1280]",
+          "bytes": 3276800,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "vision_tower.vision_model.encoder.layers.{l}.self_attn.out_proj.weight"
+      ],
+      "pattern": "vision_tower.vision_model.encoder.layers.{l}.self_attn.out_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "视觉 ViT · 图像/视频编码",
+      "operation": "Q 投影",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 104857600,
+      "tensors": 32,
+      "values": 52428800,
+      "examples": [
+        {
+          "key": "vision_tower.vision_model.encoder.layers.0.self_attn.q_proj.weight",
+          "logicalSymbol": "[D_v,D_v]",
+          "symbolDefinitions": "D_v=1280",
+          "logicalShape": "[1280,1280]",
+          "storageShape": "[1280,1280]",
+          "bytes": 3276800,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "vision_tower.vision_model.encoder.layers.{l}.self_attn.q_proj.weight"
+      ],
+      "pattern": "vision_tower.vision_model.encoder.layers.{l}.self_attn.q_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "视觉 ViT · 图像/视频编码",
+      "operation": "V 投影",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 104857600,
+      "tensors": 32,
+      "values": 52428800,
+      "examples": [
+        {
+          "key": "vision_tower.vision_model.encoder.layers.0.self_attn.v_proj.weight",
+          "logicalSymbol": "[D_v,D_v]",
+          "symbolDefinitions": "D_v=1280",
+          "logicalShape": "[1280,1280]",
+          "storageShape": "[1280,1280]",
+          "bytes": 3276800,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "vision_tower.vision_model.encoder.layers.{l}.self_attn.v_proj.weight"
+      ],
+      "pattern": "vision_tower.vision_model.encoder.layers.{l}.self_attn.v_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "L0–59 主 Attention · Q/K/V/O",
+      "operation": "O 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 94371840,
+      "tensors": 60,
+      "values": 94371840,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.self_attn.o_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=6144 · d1=256",
+          "logicalShape": null,
+          "storageShape": "[6144,256]",
+          "bytes": 1572864,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.self_attn.o_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.layers.{l}.self_attn.o_proj.weight_scale_inv"
+    },
+    {
+      "model": "main",
+      "module": "L0–59 主 Attention · Q/K/V/O",
+      "operation": "Q 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 94371840,
+      "tensors": 60,
+      "values": 94371840,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.self_attn.q_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=8192 · d1=192",
+          "logicalShape": null,
+          "storageShape": "[8192,192]",
+          "bytes": 1572864,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.self_attn.q_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.layers.{l}.self_attn.q_proj.weight_scale_inv"
+    },
+    {
+      "model": "main",
+      "module": "视觉 Projector · 视觉维度映射",
+      "operation": "multi_modal_projector.linear_2",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 75497472,
+      "tensors": 1,
+      "values": 37748736,
+      "examples": [
+        {
+          "key": "multi_modal_projector.linear_2.weight",
+          "logicalSymbol": "[d0,d1]",
+          "symbolDefinitions": "d0=6144 · d1=6144",
+          "logicalShape": "[6144,6144]",
+          "storageShape": "[6144,6144]",
+          "bytes": 75497472,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "multi_modal_projector.linear_2.weight"
+      ],
+      "pattern": "multi_modal_projector.linear_2.weight"
+    },
+    {
+      "model": "main",
+      "module": "Patch Merger · 合并空间 patch",
+      "operation": "patch_merge_mlp.linear_2",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 75497472,
+      "tensors": 1,
+      "values": 37748736,
+      "examples": [
+        {
+          "key": "patch_merge_mlp.linear_2.weight",
+          "logicalSymbol": "[d0,d1]",
+          "symbolDefinitions": "d0=6144 · d1=6144",
+          "logicalShape": "[6144,6144]",
+          "storageShape": "[6144,6144]",
+          "bytes": 75497472,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "patch_merge_mlp.linear_2.weight"
+      ],
+      "pattern": "patch_merge_mlp.linear_2.weight"
+    },
+    {
+      "model": "main",
+      "module": "L0–59 Indexer · 选 KV blocks",
+      "operation": "Index K 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 47185920,
+      "tensors": 60,
+      "values": 47185920,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.self_attn.index_k_proj.weight",
+          "logicalSymbol": "[D_idx,H]",
+          "symbolDefinitions": "H=6144 · D_idx=128",
+          "logicalShape": "[128,6144]",
+          "storageShape": "[128,6144]",
+          "bytes": 786432,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.self_attn.index_k_proj.weight"
+      ],
+      "pattern": "language_model.model.layers.{l}.self_attn.index_k_proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 共享专家 · 始终参与",
+      "operation": "Down 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 33619968,
+      "tensors": 57,
+      "values": 33619968,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.shared_experts.down_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=6144 · d1=96",
+          "logicalShape": null,
+          "storageShape": "[6144,96]",
+          "bytes": 589824,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.shared_experts.down_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.shared_experts.down_proj.weight_scale_inv"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 共享专家 · 始终参与",
+      "operation": "Gate 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 33619968,
+      "tensors": 57,
+      "values": 33619968,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.shared_experts.gate_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=3072 · d1=192",
+          "logicalShape": null,
+          "storageShape": "[3072,192]",
+          "bytes": 589824,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.shared_experts.gate_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.shared_experts.gate_proj.weight_scale_inv"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 共享专家 · 始终参与",
+      "operation": "Up 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 33619968,
+      "tensors": 57,
+      "values": 33619968,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.shared_experts.up_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=3072 · d1=192",
+          "logicalShape": null,
+          "storageShape": "[3072,192]",
+          "bytes": 589824,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.shared_experts.up_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.shared_experts.up_proj.weight_scale_inv"
+    },
+    {
+      "model": "main",
+      "module": "视觉 Projector · 视觉维度映射",
+      "operation": "multi_modal_projector.linear_1",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 15728640,
+      "tensors": 1,
+      "values": 7864320,
+      "examples": [
+        {
+          "key": "multi_modal_projector.linear_1.weight",
+          "logicalSymbol": "[d0,d1]",
+          "symbolDefinitions": "d0=6144 · d1=1280",
+          "logicalShape": "[6144,1280]",
+          "storageShape": "[6144,1280]",
+          "bytes": 15728640,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "multi_modal_projector.linear_1.weight"
+      ],
+      "pattern": "multi_modal_projector.linear_1.weight"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "K 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 15728640,
+      "tensors": 5,
+      "values": 15728640,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.layers.0.decoder_layer.self_attn.k_proj.weight",
+          "logicalSymbol": "[N_kv·D_h,H]",
+          "symbolDefinitions": "H=6144 · N_kv=4 · D_h=128",
+          "logicalShape": "[512,6144]",
+          "storageShape": "[512,6144]",
+          "bytes": 3145728,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.k_proj.weight"
+      ],
+      "pattern": "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.k_proj.weight"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "V 投影",
+      "role": "权重 / Norm 参数",
+      "format": "MXFP8 · FP8 E4M3",
+      "dtype": "F8_E4M3",
+      "bytes": 15728640,
+      "tensors": 5,
+      "values": 15728640,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.layers.0.decoder_layer.self_attn.v_proj.weight",
+          "logicalSymbol": "[N_kv·D_h,H]",
+          "symbolDefinitions": "H=6144 · N_kv=4 · D_h=128",
+          "logicalShape": "[512,6144]",
+          "storageShape": "[512,6144]",
+          "bytes": 3145728,
+          "note": "每个 FP8 值占 1 字节，矩阵轴长度不减半。另存 block scale；不能仅凭 U8 dtype 判断是否 FP4。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.v_proj.weight"
+      ],
+      "pattern": "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.v_proj.weight"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "Down 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 11796480,
+      "tensors": 5,
+      "values": 11796480,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.layers.0.decoder_layer.mlp.down_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=6144 · d1=384",
+          "logicalShape": null,
+          "storageShape": "[6144,384]",
+          "bytes": 2359296,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.layers.{l}.decoder_layer.mlp.down_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.dspark.layers.{l}.decoder_layer.mlp.down_proj.weight_scale_inv"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "Gate 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 11796480,
+      "tensors": 5,
+      "values": 11796480,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.layers.0.decoder_layer.mlp.gate_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=12288 · d1=192",
+          "logicalShape": null,
+          "storageShape": "[12288,192]",
+          "bytes": 2359296,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.layers.{l}.decoder_layer.mlp.gate_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.dspark.layers.{l}.decoder_layer.mlp.gate_proj.weight_scale_inv"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "Up 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 11796480,
+      "tensors": 5,
+      "values": 11796480,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.layers.0.decoder_layer.mlp.up_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=12288 · d1=192",
+          "logicalShape": null,
+          "storageShape": "[12288,192]",
+          "bytes": 2359296,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.layers.{l}.decoder_layer.mlp.up_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.dspark.layers.{l}.decoder_layer.mlp.up_proj.weight_scale_inv"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "O 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 7864320,
+      "tensors": 5,
+      "values": 7864320,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.layers.0.decoder_layer.self_attn.o_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=6144 · d1=256",
+          "logicalShape": null,
+          "storageShape": "[6144,256]",
+          "bytes": 1572864,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.o_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.o_proj.weight_scale_inv"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "Q 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 7864320,
+      "tensors": 5,
+      "values": 7864320,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.layers.0.decoder_layer.self_attn.q_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=8192 · d1=192",
+          "logicalShape": null,
+          "storageShape": "[8192,192]",
+          "bytes": 1572864,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.q_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.q_proj.weight_scale_inv"
+    },
+    {
+      "model": "main",
+      "module": "L0–2 Dense FFN · 非路由 MLP",
+      "operation": "Down 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 7077888,
+      "tensors": 3,
+      "values": 7077888,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.mlp.down_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=6144 · d1=384",
+          "logicalShape": null,
+          "storageShape": "[6144,384]",
+          "bytes": 2359296,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.mlp.down_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.layers.{l}.mlp.down_proj.weight_scale_inv"
+    },
+    {
+      "model": "main",
+      "module": "L0–2 Dense FFN · 非路由 MLP",
+      "operation": "Gate 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 7077888,
+      "tensors": 3,
+      "values": 7077888,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.mlp.gate_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=12288 · d1=192",
+          "logicalShape": null,
+          "storageShape": "[12288,192]",
+          "bytes": 2359296,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.mlp.gate_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.layers.{l}.mlp.gate_proj.weight_scale_inv"
+    },
+    {
+      "model": "main",
+      "module": "L0–2 Dense FFN · 非路由 MLP",
+      "operation": "Up 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 7077888,
+      "tensors": 3,
+      "values": 7077888,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.mlp.up_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=12288 · d1=192",
+          "logicalShape": null,
+          "storageShape": "[12288,192]",
+          "bytes": 2359296,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.mlp.up_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.layers.{l}.mlp.up_proj.weight_scale_inv"
+    },
+    {
+      "model": "main",
+      "module": "视觉 ViT · 图像/视频编码",
+      "operation": "embeddings.patch_embedding",
+      "role": "权重 / Norm 参数",
+      "format": "F32",
+      "dtype": "F32",
+      "bytes": 6021120,
+      "tensors": 1,
+      "values": 1505280,
+      "examples": [
+        {
+          "key": "vision_tower.vision_model.embeddings.patch_embedding.weight",
+          "logicalSymbol": "[d0,d1,d2,d3,d4]",
+          "symbolDefinitions": "d0=1280 · d1=3 · d2=2 · d3=14 · d4=14",
+          "logicalShape": "[1280,3,2,14,14]",
+          "storageShape": "[1280,3,2,14,14]",
+          "bytes": 6021120,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "vision_tower.vision_model.embeddings.patch_embedding.weight"
+      ],
+      "pattern": "vision_tower.vision_model.embeddings.patch_embedding.weight"
+    },
+    {
+      "model": "main",
+      "module": "L0–59 Indexer · 选 KV blocks",
+      "operation": "Index Q 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 5898240,
+      "tensors": 60,
+      "values": 5898240,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.self_attn.index_q_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=512 · d1=192",
+          "logicalShape": null,
+          "storageShape": "[512,192]",
+          "bytes": 98304,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.self_attn.index_q_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.layers.{l}.self_attn.index_q_proj.weight_scale_inv"
+    },
+    {
+      "model": "main",
+      "module": "L0–59 主 Attention · Q/K/V/O",
+      "operation": "K 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 5898240,
+      "tensors": 60,
+      "values": 5898240,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.self_attn.k_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=512 · d1=192",
+          "logicalShape": null,
+          "storageShape": "[512,192]",
+          "bytes": 98304,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.self_attn.k_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.layers.{l}.self_attn.k_proj.weight_scale_inv"
+    },
+    {
+      "model": "main",
+      "module": "L0–59 主 Attention · Q/K/V/O",
+      "operation": "V 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 5898240,
+      "tensors": 60,
+      "values": 5898240,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.self_attn.v_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=512 · d1=192",
+          "logicalShape": null,
+          "storageShape": "[512,192]",
+          "bytes": 98304,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.self_attn.v_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.layers.{l}.self_attn.v_proj.weight_scale_inv"
+    },
+    {
+      "model": "main",
+      "module": "Decoder Norm · 残差归一化",
+      "operation": "归一化",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 1486848,
+      "tensors": 121,
+      "values": 743424,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.input_layernorm.weight",
+          "logicalSymbol": "[H]",
+          "symbolDefinitions": "H=6144",
+          "logicalShape": "[6144]",
+          "storageShape": "[6144]",
+          "bytes": 12288,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.input_layernorm.weight",
+        "language_model.model.layers.{l}.post_attention_layernorm.weight",
+        "language_model.model.norm.weight"
+      ],
+      "pattern": "language_model.model.layers.{l}.input_layernorm.weight"
+    },
+    {
+      "model": "main",
+      "module": "L0–59 Indexer · 选 KV blocks",
+      "operation": "Index K 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 1474560,
+      "tensors": 60,
+      "values": 1474560,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.self_attn.index_k_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=128 · d1=192",
+          "logicalShape": null,
+          "storageShape": "[128,192]",
+          "bytes": 24576,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.self_attn.index_k_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.layers.{l}.self_attn.index_k_proj.weight_scale_inv"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "K 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 491520,
+      "tensors": 5,
+      "values": 491520,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.layers.0.decoder_layer.self_attn.k_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=512 · d1=192",
+          "logicalShape": null,
+          "storageShape": "[512,192]",
+          "bytes": 98304,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.k_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.k_proj.weight_scale_inv"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "V 投影",
+      "role": "权重量化辅助 scale",
+      "format": "MXFP8 scale · E8M0（U8 编码）",
+      "dtype": "U8",
+      "bytes": 491520,
+      "tensors": 5,
+      "values": 491520,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.layers.0.decoder_layer.self_attn.v_proj.weight_scale_inv",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "d0=512 · d1=192",
+          "logicalShape": null,
+          "storageShape": "[512,192]",
+          "bytes": 98304,
+          "note": "U8 在此保存缩放指数编码；它不是两值 FP4 打包，也不是神经网络矩阵。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.v_proj.weight_scale_inv"
+      ],
+      "pattern": "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.v_proj.weight_scale_inv"
+    },
+    {
+      "model": "main",
+      "module": "视觉 ViT · 图像/视频编码",
+      "operation": "mlp.fc1",
+      "role": "bias / 选路修正",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 327680,
+      "tensors": 32,
+      "values": 163840,
+      "examples": [
+        {
+          "key": "vision_tower.vision_model.encoder.layers.0.mlp.fc1.bias",
+          "logicalSymbol": "[d0]",
+          "symbolDefinitions": "d0=5120",
+          "logicalShape": "[5120]",
+          "storageShape": "[5120]",
+          "bytes": 10240,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "vision_tower.vision_model.encoder.layers.{l}.mlp.fc1.bias"
+      ],
+      "pattern": "vision_tower.vision_model.encoder.layers.{l}.mlp.fc1.bias"
+    },
+    {
+      "model": "main",
+      "module": "视觉 ViT · 图像/视频编码",
+      "operation": "归一化",
+      "role": "bias / 选路修正",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 166400,
+      "tensors": 65,
+      "values": 83200,
+      "examples": [
+        {
+          "key": "vision_tower.vision_model.encoder.layers.0.layer_norm1.bias",
+          "logicalSymbol": "[D_v]",
+          "symbolDefinitions": "D_v=1280",
+          "logicalShape": "[1280]",
+          "storageShape": "[1280]",
+          "bytes": 2560,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "vision_tower.vision_model.encoder.layers.{l}.layer_norm1.bias",
+        "vision_tower.vision_model.encoder.layers.{l}.layer_norm2.bias",
+        "vision_tower.vision_model.pre_layrnorm.bias"
+      ],
+      "pattern": "vision_tower.vision_model.encoder.layers.{l}.layer_norm1.bias"
+    },
+    {
+      "model": "main",
+      "module": "视觉 ViT · 图像/视频编码",
+      "operation": "归一化",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 166400,
+      "tensors": 65,
+      "values": 83200,
+      "examples": [
+        {
+          "key": "vision_tower.vision_model.encoder.layers.0.layer_norm1.weight",
+          "logicalSymbol": "[D_v]",
+          "symbolDefinitions": "D_v=1280",
+          "logicalShape": "[1280]",
+          "storageShape": "[1280]",
+          "bytes": 2560,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "vision_tower.vision_model.encoder.layers.{l}.layer_norm1.weight",
+        "vision_tower.vision_model.encoder.layers.{l}.layer_norm2.weight",
+        "vision_tower.vision_model.pre_layrnorm.weight"
+      ],
+      "pattern": "vision_tower.vision_model.encoder.layers.{l}.layer_norm1.weight"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "归一化",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 150016,
+      "tensors": 22,
+      "values": 75008,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.final_norm.weight",
+          "logicalSymbol": "[H]",
+          "symbolDefinitions": "H=6144",
+          "logicalShape": "[6144]",
+          "storageShape": "[6144]",
+          "bytes": 12288,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        },
+        {
+          "key": "language_model.model.dspark.layers.0.decoder_layer.self_attn.k_norm.weight",
+          "logicalSymbol": "[D_h]",
+          "symbolDefinitions": "D_h=128",
+          "logicalShape": "[128]",
+          "storageShape": "[128]",
+          "bytes": 256,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.final_norm.weight",
+        "language_model.model.dspark.hidden_norm.weight",
+        "language_model.model.dspark.layers.{l}.decoder_layer.input_layernorm.weight",
+        "language_model.model.dspark.layers.{l}.decoder_layer.post_attention_layernorm.weight",
+        "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.k_norm.weight",
+        "language_model.model.dspark.layers.{l}.decoder_layer.self_attn.q_norm.weight"
+      ],
+      "pattern": "language_model.model.dspark.final_norm.weight"
+    },
+    {
+      "model": "main",
+      "module": "视觉 ViT · 图像/视频编码",
+      "operation": "mlp.fc2",
+      "role": "bias / 选路修正",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 81920,
+      "tensors": 32,
+      "values": 40960,
+      "examples": [
+        {
+          "key": "vision_tower.vision_model.encoder.layers.0.mlp.fc2.bias",
+          "logicalSymbol": "[D_v]",
+          "symbolDefinitions": "D_v=1280",
+          "logicalShape": "[1280]",
+          "storageShape": "[1280]",
+          "bytes": 2560,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "vision_tower.vision_model.encoder.layers.{l}.mlp.fc2.bias"
+      ],
+      "pattern": "vision_tower.vision_model.encoder.layers.{l}.mlp.fc2.bias"
+    },
+    {
+      "model": "main",
+      "module": "视觉 ViT · 图像/视频编码",
+      "operation": "K 投影",
+      "role": "bias / 选路修正",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 81920,
+      "tensors": 32,
+      "values": 40960,
+      "examples": [
+        {
+          "key": "vision_tower.vision_model.encoder.layers.0.self_attn.k_proj.bias",
+          "logicalSymbol": "[D_v]",
+          "symbolDefinitions": "D_v=1280",
+          "logicalShape": "[1280]",
+          "storageShape": "[1280]",
+          "bytes": 2560,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "vision_tower.vision_model.encoder.layers.{l}.self_attn.k_proj.bias"
+      ],
+      "pattern": "vision_tower.vision_model.encoder.layers.{l}.self_attn.k_proj.bias"
+    },
+    {
+      "model": "main",
+      "module": "视觉 ViT · 图像/视频编码",
+      "operation": "self_attn.out_proj",
+      "role": "bias / 选路修正",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 81920,
+      "tensors": 32,
+      "values": 40960,
+      "examples": [
+        {
+          "key": "vision_tower.vision_model.encoder.layers.0.self_attn.out_proj.bias",
+          "logicalSymbol": "[D_v]",
+          "symbolDefinitions": "D_v=1280",
+          "logicalShape": "[1280]",
+          "storageShape": "[1280]",
+          "bytes": 2560,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "vision_tower.vision_model.encoder.layers.{l}.self_attn.out_proj.bias"
+      ],
+      "pattern": "vision_tower.vision_model.encoder.layers.{l}.self_attn.out_proj.bias"
+    },
+    {
+      "model": "main",
+      "module": "视觉 ViT · 图像/视频编码",
+      "operation": "Q 投影",
+      "role": "bias / 选路修正",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 81920,
+      "tensors": 32,
+      "values": 40960,
+      "examples": [
+        {
+          "key": "vision_tower.vision_model.encoder.layers.0.self_attn.q_proj.bias",
+          "logicalSymbol": "[D_v]",
+          "symbolDefinitions": "D_v=1280",
+          "logicalShape": "[1280]",
+          "storageShape": "[1280]",
+          "bytes": 2560,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "vision_tower.vision_model.encoder.layers.{l}.self_attn.q_proj.bias"
+      ],
+      "pattern": "vision_tower.vision_model.encoder.layers.{l}.self_attn.q_proj.bias"
+    },
+    {
+      "model": "main",
+      "module": "视觉 ViT · 图像/视频编码",
+      "operation": "V 投影",
+      "role": "bias / 选路修正",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 81920,
+      "tensors": 32,
+      "values": 40960,
+      "examples": [
+        {
+          "key": "vision_tower.vision_model.encoder.layers.0.self_attn.v_proj.bias",
+          "logicalSymbol": "[D_v]",
+          "symbolDefinitions": "D_v=1280",
+          "logicalShape": "[1280]",
+          "storageShape": "[1280]",
+          "bytes": 2560,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "vision_tower.vision_model.encoder.layers.{l}.self_attn.v_proj.bias"
+      ],
+      "pattern": "vision_tower.vision_model.encoder.layers.{l}.self_attn.v_proj.bias"
+    },
+    {
+      "model": "main",
+      "module": "L0–59 Indexer · 选 KV blocks",
+      "operation": "归一化",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 30720,
+      "tensors": 120,
+      "values": 15360,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.self_attn.index_k_norm.weight",
+          "logicalSymbol": "[D_idx]",
+          "symbolDefinitions": "D_idx=128",
+          "logicalShape": "[128]",
+          "storageShape": "[128]",
+          "bytes": 256,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.self_attn.index_k_norm.weight",
+        "language_model.model.layers.{l}.self_attn.index_q_norm.weight"
+      ],
+      "pattern": "language_model.model.layers.{l}.self_attn.index_k_norm.weight"
+    },
+    {
+      "model": "main",
+      "module": "L0–59 主 Attention · Q/K/V/O",
+      "operation": "归一化",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 30720,
+      "tensors": 120,
+      "values": 15360,
+      "examples": [
+        {
+          "key": "language_model.model.layers.0.self_attn.k_norm.weight",
+          "logicalSymbol": "[D_h]",
+          "symbolDefinitions": "D_h=128",
+          "logicalShape": "[128]",
+          "storageShape": "[128]",
+          "bytes": 256,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.self_attn.k_norm.weight",
+        "language_model.model.layers.{l}.self_attn.q_norm.weight"
+      ],
+      "pattern": "language_model.model.layers.{l}.self_attn.k_norm.weight"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 Router · 专家选择",
+      "operation": "Top-4 选择修正",
+      "role": "bias / 选路修正",
+      "format": "F32",
+      "dtype": "F32",
+      "bytes": 29184,
+      "tensors": 57,
+      "values": 7296,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.e_score_correction_bias",
+          "logicalSymbol": "[E]",
+          "symbolDefinitions": "E=128",
+          "logicalShape": "[128]",
+          "storageShape": "[128]",
+          "bytes": 512,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.e_score_correction_bias"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.e_score_correction_bias"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 路由专家 · Top-4",
+      "operation": "Gate 投影",
+      "role": "激活量化辅助 scale",
+      "format": "F32 · scale 元数据",
+      "dtype": "F32",
+      "bytes": 29184,
+      "tensors": 7296,
+      "values": 7296,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.experts.0.w1.input_global_scale",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "",
+          "logicalShape": null,
+          "storageShape": "[]",
+          "bytes": 4,
+          "note": "辅助量化张量；其形状表示 scale 的组织方式，不代表矩阵的输入/输出宽度。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w1.input_global_scale"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w1.input_global_scale"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 路由专家 · Top-4",
+      "operation": "Gate 投影",
+      "role": "权重量化辅助 scale",
+      "format": "F32 · scale 元数据",
+      "dtype": "F32",
+      "bytes": 29184,
+      "tensors": 7296,
+      "values": 7296,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.experts.0.w1.weight_global_scale",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "",
+          "logicalShape": null,
+          "storageShape": "[]",
+          "bytes": 4,
+          "note": "辅助量化张量；其形状表示 scale 的组织方式，不代表矩阵的输入/输出宽度。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w1.weight_global_scale"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w1.weight_global_scale"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 路由专家 · Top-4",
+      "operation": "Down 投影",
+      "role": "激活量化辅助 scale",
+      "format": "F32 · scale 元数据",
+      "dtype": "F32",
+      "bytes": 29184,
+      "tensors": 7296,
+      "values": 7296,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.experts.0.w2.input_global_scale",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "",
+          "logicalShape": null,
+          "storageShape": "[]",
+          "bytes": 4,
+          "note": "辅助量化张量；其形状表示 scale 的组织方式，不代表矩阵的输入/输出宽度。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w2.input_global_scale"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w2.input_global_scale"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 路由专家 · Top-4",
+      "operation": "Down 投影",
+      "role": "权重量化辅助 scale",
+      "format": "F32 · scale 元数据",
+      "dtype": "F32",
+      "bytes": 29184,
+      "tensors": 7296,
+      "values": 7296,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.experts.0.w2.weight_global_scale",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "",
+          "logicalShape": null,
+          "storageShape": "[]",
+          "bytes": 4,
+          "note": "辅助量化张量；其形状表示 scale 的组织方式，不代表矩阵的输入/输出宽度。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w2.weight_global_scale"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w2.weight_global_scale"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 路由专家 · Top-4",
+      "operation": "Up 投影",
+      "role": "激活量化辅助 scale",
+      "format": "F32 · scale 元数据",
+      "dtype": "F32",
+      "bytes": 29184,
+      "tensors": 7296,
+      "values": 7296,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.experts.0.w3.input_global_scale",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "",
+          "logicalShape": null,
+          "storageShape": "[]",
+          "bytes": 4,
+          "note": "辅助量化张量；其形状表示 scale 的组织方式，不代表矩阵的输入/输出宽度。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w3.input_global_scale"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w3.input_global_scale"
+    },
+    {
+      "model": "main",
+      "module": "L3–59 路由专家 · Top-4",
+      "operation": "Up 投影",
+      "role": "权重量化辅助 scale",
+      "format": "F32 · scale 元数据",
+      "dtype": "F32",
+      "bytes": 29184,
+      "tensors": 7296,
+      "values": 7296,
+      "examples": [
+        {
+          "key": "language_model.model.layers.14.block_sparse_moe.experts.0.w3.weight_global_scale",
+          "logicalSymbol": "辅助张量 · 无矩阵输入/输出轴",
+          "symbolDefinitions": "",
+          "logicalShape": null,
+          "storageShape": "[]",
+          "bytes": 4,
+          "note": "辅助量化张量；其形状表示 scale 的组织方式，不代表矩阵的输入/输出宽度。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w3.weight_global_scale"
+      ],
+      "pattern": "language_model.model.layers.{l}.block_sparse_moe.experts.{e}.w3.weight_global_scale"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "草稿置信度头（key 标识）",
+      "role": "权重 / Norm 参数",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 12800,
+      "tensors": 1,
+      "values": 6400,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.confidence_head.proj.weight",
+          "logicalSymbol": "[d0,d1]",
+          "symbolDefinitions": "d0=1 · d1=6400",
+          "logicalShape": "[1,6400]",
+          "storageShape": "[1,6400]",
+          "bytes": 12800,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.confidence_head.proj.weight"
+      ],
+      "pattern": "language_model.model.dspark.confidence_head.proj.weight"
+    },
+    {
+      "model": "main",
+      "module": "视觉 Projector · 视觉维度映射",
+      "operation": "multi_modal_projector.linear_2",
+      "role": "bias / 选路修正",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 12288,
+      "tensors": 1,
+      "values": 6144,
+      "examples": [
+        {
+          "key": "multi_modal_projector.linear_2.bias",
+          "logicalSymbol": "[H]",
+          "symbolDefinitions": "H=6144",
+          "logicalShape": "[6144]",
+          "storageShape": "[6144]",
+          "bytes": 12288,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "multi_modal_projector.linear_2.bias"
+      ],
+      "pattern": "multi_modal_projector.linear_2.bias"
+    },
+    {
+      "model": "main",
+      "module": "Patch Merger · 合并空间 patch",
+      "operation": "patch_merge_mlp.linear_1",
+      "role": "bias / 选路修正",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 12288,
+      "tensors": 1,
+      "values": 6144,
+      "examples": [
+        {
+          "key": "patch_merge_mlp.linear_1.bias",
+          "logicalSymbol": "[H]",
+          "symbolDefinitions": "H=6144",
+          "logicalShape": "[6144]",
+          "storageShape": "[6144]",
+          "bytes": 12288,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "patch_merge_mlp.linear_1.bias"
+      ],
+      "pattern": "patch_merge_mlp.linear_1.bias"
+    },
+    {
+      "model": "main",
+      "module": "Patch Merger · 合并空间 patch",
+      "operation": "patch_merge_mlp.linear_2",
+      "role": "bias / 选路修正",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 12288,
+      "tensors": 1,
+      "values": 6144,
+      "examples": [
+        {
+          "key": "patch_merge_mlp.linear_2.bias",
+          "logicalSymbol": "[H]",
+          "symbolDefinitions": "H=6144",
+          "logicalShape": "[6144]",
+          "storageShape": "[6144]",
+          "bytes": 12288,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "patch_merge_mlp.linear_2.bias"
+      ],
+      "pattern": "patch_merge_mlp.linear_2.bias"
+    },
+    {
+      "model": "main",
+      "module": "视觉 Projector · 视觉维度映射",
+      "operation": "multi_modal_projector.linear_1",
+      "role": "bias / 选路修正",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 12288,
+      "tensors": 1,
+      "values": 6144,
+      "examples": [
+        {
+          "key": "multi_modal_projector.linear_1.bias",
+          "logicalSymbol": "[H]",
+          "symbolDefinitions": "H=6144",
+          "logicalShape": "[6144]",
+          "storageShape": "[6144]",
+          "bytes": 12288,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "multi_modal_projector.linear_1.bias"
+      ],
+      "pattern": "multi_modal_projector.linear_1.bias"
+    },
+    {
+      "model": "dspark",
+      "module": "DSpark 草稿 · 独立 checkpoint",
+      "operation": "草稿置信度头（key 标识）",
+      "role": "bias / 选路修正",
+      "format": "BF16",
+      "dtype": "BF16",
+      "bytes": 2,
+      "tensors": 1,
+      "values": 1,
+      "examples": [
+        {
+          "key": "language_model.model.dspark.confidence_head.proj.bias",
+          "logicalSymbol": "[d0]",
+          "symbolDefinitions": "d0=1",
+          "logicalShape": "[1]",
+          "storageShape": "[1]",
+          "bytes": 2,
+          "note": "存储形状与逻辑参数形状相同；加载后的融合、分片、重排另由后端决定。"
+        }
+      ],
+      "patterns": [
+        "language_model.model.dspark.confidence_head.proj.bias"
+      ],
+      "pattern": "language_model.model.dspark.confidence_head.proj.bias"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import {WeightCard} from "./weight-details";
 import katex from "katex";
 import type { OpNode, Tab, IoBinding, BindingKind, CodeSection } from "../types";
 import type { LayerType, ExpandedStage } from "./types";
@@ -55,23 +56,22 @@ function symbolicShape(shape:string,index=false){
     .replaceAll("200064","V");
 }
 
-function ShapeRows({shape,index=false}:{shape:string;index?:boolean}){
-  return <div className="shape-rows"><span><i>符号</i><code title={symbolicShape(shape,index)}>{symbolicShape(shape,index)}</code></span><span><i>实际</i><code title={shape}>{shape}</code></span></div>;
+function ShapeRows({shape,index=false,node,output=false}:{shape:string;index?:boolean;node:OpNode;output?:boolean}){
+  const physical=output&&node.id==="s-cache";
+  const symbolic=physical?"[N_pages,N_kv,rank,B_block,2·D_h]":symbolicShape(shape,index);
+  const domain=physical?"主 KV cache 物理页布局":node.id==="s-idxcache"&&output?"历史张量逻辑视图，非页内布局":/TP|rank/.test(shape)?"计算张量 / TP 局部表达":"计算张量 / 逻辑视图";
+  return <div className="shape-rows"><p className="shape-domain">{domain}</p><span><i>维度表达</i><code title={symbolic}>{symbolic}</code></span><span><i>配置代入</i><code title={shape}>{shape}</code></span>{physical&&<small>128 是 B_block（每页 token 数）；256=2×D_h，为 K/V 两半，不是 256 个 head。</small>}</div>;
 }
 
 function bindingsFor(node:OpNode):IoBinding[]{
   const dataInputs=INPUT_OVERRIDES[node.id]??[{kind:node.kind==="io"?"external":"upstream",label:node.input,shape:node.inputShape,from:node.kind==="io"?"模型调用方 / runtime":"图中紧邻的上游模块输出"}];
-  const weightInputs=node.weights.map(weight=>{
-    const tpShape=node.id==="d-gateup"?weight.shape.replace("[12288,6144]","[12288/TP,6144]"):node.id==="d-down"?weight.shape.replace("[6144,12288]","[6144,12288/TP]"):null;
-    return {kind:"weight" as const,label:weight.key,shape:tpShape?`${weight.dtype} · TP shard ${tpShape}`:`${weight.dtype} · ${weight.shape}`,from:weight.runtime?`checkpoint → ${weight.runtime}`:`checkpoint · ${weight.shard}`,note:[weight.params?`${weight.params} logical parameters`:null,weight.note].filter(Boolean).join(" · ")};
-  });
-  return [...dataInputs,...weightInputs];
+  return dataInputs;
 }
 
 function IoView({node}:{node:OpNode}){
   const bindings=bindingsFor(node);
   const labels:Record<BindingKind,string>={upstream:"上游张量",external:"外部输入",weight:"权重输入"};
-  return <div className="io-binding-view"><section className="binding-list"><header><span>INPUT BINDINGS</span><b>{bindings.length} 路输入</b></header>{bindings.map((binding,index)=><article className={`binding binding-${binding.kind}`} key={`${binding.kind}-${binding.label}-${index}`}><div><span>{labels[binding.kind]}</span></div><b>{binding.label}</b><ShapeRows shape={binding.shape} index={node.id.startsWith("s-idx")||node.id==="s-blockmax"||node.id==="s-topk"}/><p><i>来自</i>{binding.from}</p>{binding.note&&<small>{binding.note}</small>}</article>)}</section><section className="output-binding"><header><span>OUTPUT BINDING</span><b>1 路产物</b></header><article><div><span>计算产物</span></div><b>{node.output}</b><ShapeRows shape={node.outputShape} index={node.id.startsWith("s-idx")||node.id==="s-blockmax"||node.id==="s-topk"}/><p><i>送往</i>{NEXT_BY_ID[node.id]??"图中下游模块"}</p></article></section></div>;
+  return <div className="io-binding-view"><p className="shape-convention">维度表达与配置代入描述计算张量或已注明的 runtime 布局；B/S/TP 等仍是变量，不是某次运行的实测值。B/S 为逻辑 batch/sequence 表示，vLLM 可按调度展平为 Nq。权重下方单列逻辑尺寸与 checkpoint 存储尺寸。</p><section className="binding-list"><header><span>INPUT BINDINGS</span><b>{bindings.length} 路数据 + {node.weights.length} 个权重绑定</b></header>{bindings.map((binding,index)=><article className={`binding binding-${binding.kind}`} key={`${binding.kind}-${binding.label}-${index}`}><div><span>{labels[binding.kind]}</span></div><b>{binding.label}</b><ShapeRows node={node} shape={binding.shape} index={node.id.startsWith("s-idx")||node.id==="s-blockmax"||node.id==="s-topk"}/><p><i>来自</i>{binding.from}</p>{binding.note&&<small>{binding.note}</small>}</article>)}{node.weights.map(weight=><WeightCard key={weight.key} weight={weight} nodeId={node.id}/>)}</section><section className="output-binding"><header><span>OUTPUT BINDING</span><b>1 路产物</b></header><article><div><span>计算产物</span></div><b>{node.output}</b><ShapeRows node={node} output shape={node.outputShape} index={node.id.startsWith("s-idx")||node.id==="s-blockmax"||node.id==="s-topk"}/><p><i>送往</i>{NEXT_BY_ID[node.id]??"图中下游模块"}</p></article></section></div>;
 }
 
 function codeSourceLabel(section:CodeSection){
@@ -126,7 +126,7 @@ export function DetailPanel({node,tab,setTab,pinned,onClear,expanded,layerType}:
   const formulaSteps=FORMULA_STEPS_BY_ID[node.id];
   return <aside className="detail-panel"><header className="detail-header"><div><span>{node.kicker}</span><h2>{node.title}</h2></div>{pinned?<button className="unpin-button" aria-label="取消固定" title="取消固定" onClick={onClear}>×</button>:<i className={`kind-dot op-${node.kind}`}/>}<p>{node.summary}</p><code>{node.runtime}</code></header><div className="detail-tabs">{tabs.map(([id,label])=><button key={id} className={tab===id?"active":""} onClick={()=>setTab(id)}>{label}</button>)}</div><div key={tab} className={`detail-content detail-${tab}`}>
     {tab==="io"&&<IoView node={node}/>}
-    {tab==="formula"&&<div className="formula-view"><span>作用</span><div className="formula-purpose">{node.summary}</div><span>实际公式</span><LatexFormula node={node}/>{formulaSteps?<div className="formula-steps">{formulaSteps.map(step=><article className="formula-step" key={step.title}><header>{step.title}</header><LatexExpression formula={step.formula} label={`${step.title} 公式`} className="formula-step-math"/><p>{step.explanation}</p></article>)}</div>:<><div className="formula-implementation"><b>一句话解释</b><p>{node.formulaNote??FORMULA_NOTE[node.kind]}</p></div><div className="formula-terms">{formulaTerms(node).map(([symbol,meaning])=><span key={symbol}><b>{symbol}</b>{meaning}</span>)}</div></>}{formulaSteps&&<div className="formula-terms">{formulaTerms(node).map(([symbol,meaning])=><span key={symbol}><b>{symbol}</b>{meaning}</span>)}</div>}</div>}
+    {tab==="formula"&&<div className="formula-view"><span>作用</span><div className="formula-purpose">{node.summary}</div><span>逻辑计算公式 · 非 checkpoint 存储布局</span><LatexFormula node={node}/>{formulaSteps?<div className="formula-steps">{formulaSteps.map(step=><article className="formula-step" key={step.title}><header>{step.title}</header><LatexExpression formula={step.formula} label={`${step.title} 公式`} className="formula-step-math"/><p>{step.explanation}</p></article>)}</div>:<><div className="formula-implementation"><b>一句话解释</b><p>{node.formulaNote??FORMULA_NOTE[node.kind]}</p></div><div className="formula-terms">{formulaTerms(node).map(([symbol,meaning])=><span key={symbol}><b>{symbol}</b>{meaning}</span>)}</div></>}{formulaSteps&&<div className="formula-terms">{formulaTerms(node).map(([symbol,meaning])=><span key={symbol}><b>{symbol}</b>{meaning}</span>)}</div>}</div>}
     {tab==="code"&&<CodeView node={node}/>}
     </div><footer>{node.sourceUrl.includes("huggingface.co/")?`HF @ ${HF_REVISION.slice(0,7)} · configuration evidence`:`vLLM @ ${VLLM_COMMIT.slice(0,7)} · official safetensors`}</footer></aside>;
 }

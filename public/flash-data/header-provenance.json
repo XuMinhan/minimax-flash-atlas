@@ -1,0 +1,303 @@
+{
+  "revision": "262ae6830934f3512211081b8a3f16425b93a239",
+  "tensorCount": 89632,
+  "totalTensorBytes": 250103411200,
+  "headers": [
+    {
+      "shard": 1,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00001-of-00048.safetensors",
+      "headerBytes": 237272,
+      "sha256": "210187d1a95e66319ed97ee9c1b9b01f89bf4a438803048157bfb76d0fc7077f"
+    },
+    {
+      "shard": 2,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00002-of-00048.safetensors",
+      "headerBytes": 225168,
+      "sha256": "ddc791b324933f5afb6723be3c6608dd43e9a4a1ce53032ce5b13886e63836d3"
+    },
+    {
+      "shard": 3,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00003-of-00048.safetensors",
+      "headerBytes": 225168,
+      "sha256": "d7aad9cd1c38fa78153e9528b73fe4641b2e4e691f23e1ebe5cb385142bc5c48"
+    },
+    {
+      "shard": 4,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00004-of-00048.safetensors",
+      "headerBytes": 455936,
+      "sha256": "7e76e82cbf24567c5b34d2a5eb6574d717f542162a664e5736e6616e7afba9a2"
+    },
+    {
+      "shard": 5,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00005-of-00048.safetensors",
+      "headerBytes": 455936,
+      "sha256": "e34936d0d38bcc94d7e978cf6127f52af7e709f5fde138337b72499f281896c9"
+    },
+    {
+      "shard": 6,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00006-of-00048.safetensors",
+      "headerBytes": 455936,
+      "sha256": "1fa9b1f4af3b829c1284eb98c192c220a6c43fbae59d1fbf14de63a056139e7f"
+    },
+    {
+      "shard": 7,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00007-of-00048.safetensors",
+      "headerBytes": 455936,
+      "sha256": "ac3d2c950a18da5852919f6a4390379881730affd670f9dbd477bcad89a79d12"
+    },
+    {
+      "shard": 8,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00008-of-00048.safetensors",
+      "headerBytes": 455936,
+      "sha256": "813ccbac948b7ee4c157e89be72a403cc3fd2c86a4970a86bd5141d76501d49f"
+    },
+    {
+      "shard": 9,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00009-of-00048.safetensors",
+      "headerBytes": 457496,
+      "sha256": "798af57cfc54af9faf77047603308e9b048744718963cdc40c7962b5296177ae"
+    },
+    {
+      "shard": 10,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00010-of-00048.safetensors",
+      "headerBytes": 457496,
+      "sha256": "b45c117fd5d05424ac82a9612410c209e449263f37ac1353aaeb107df74121d6"
+    },
+    {
+      "shard": 11,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00011-of-00048.safetensors",
+      "headerBytes": 457496,
+      "sha256": "59e202e7c5b96b352e7a9000bb93e016a226a591404ff924efa429b2705d0986"
+    },
+    {
+      "shard": 12,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00012-of-00048.safetensors",
+      "headerBytes": 457496,
+      "sha256": "abcbd5c136c2459c8321159bde6e43d92b44c8a035a7c5b49eb39bfc27dc05cb"
+    },
+    {
+      "shard": 13,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00013-of-00048.safetensors",
+      "headerBytes": 227072,
+      "sha256": "e2ca12cf0aa502225f1cd24caa96c2a8643665f462efc029c3d678a8194c61cc"
+    },
+    {
+      "shard": 14,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00014-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "9880fd713d47805f68ba3153ea0fd9857cfd47c7f6f0ce78bc65722549884161"
+    },
+    {
+      "shard": 15,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00015-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "29f0a0a184f68900043376d9a197b2bf33e20393da5d40001d81c91af29f8a8b"
+    },
+    {
+      "shard": 16,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00016-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "d5e0023845871e086e34a0d232aaecd84b775a951e3a41e51c95be5190dd5d16"
+    },
+    {
+      "shard": 17,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00017-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "2b4fe467ef2bab4a9d84411282b4e058ed229a8ad4eb2d4ad2e18c400f892b9f"
+    },
+    {
+      "shard": 18,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00018-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "dfe48e414c19c4ea5301150446956b2abc8b7fc6fb0456f012f68670ca6f55ca"
+    },
+    {
+      "shard": 19,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00019-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "2725ba4cc65bec083960fa02a5c79cefdb7e1a9c666c2dc980f75fa49fe61b5c"
+    },
+    {
+      "shard": 20,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00020-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "4f01a1de09348daac7c3b6ff84e990a9fd88482fcd6ba263bada353bc7f19d0e"
+    },
+    {
+      "shard": 21,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00021-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "1abf7c2e6d521ed28ea1f7d860303c02c46d19c5bd85d1bef3201d799e5dc619"
+    },
+    {
+      "shard": 22,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00022-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "ca8b355268757ac5524a15cfdb6efb4490f57c97c895b60fdf04637c0dce2892"
+    },
+    {
+      "shard": 23,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00023-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "da6b6b0d1fb5cf6cecd33a197041d1b7a97ac5c39d18e336f5f086adf117bb15"
+    },
+    {
+      "shard": 24,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00024-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "a0065b81d41d6e7f8de22e26175a0a36ecb452ce092bed57b3e884b565178f47"
+    },
+    {
+      "shard": 25,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00025-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "e03a4743f216ee62086f593c6877cb6cdcadb0c789f64e1b4c88c54745d16681"
+    },
+    {
+      "shard": 26,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00026-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "49f30ef7753fc1bb6695e08feec06148269fd7be44f5f511a7c25e5fe124cc73"
+    },
+    {
+      "shard": 27,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00027-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "4cf9b969545cafff458eb49411dfcb040d1692fb2a57c219762a9661ed75e1ff"
+    },
+    {
+      "shard": 28,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00028-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "79514c2f16048e6ea4671846491a3f20693dad7bfba9634fc2c21aa8a411e325"
+    },
+    {
+      "shard": 29,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00029-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "df4d3d7f0c97fc219eab7b21938eb55535f0d375e96544c48626ea6af937291e"
+    },
+    {
+      "shard": 30,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00030-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "04fa94fe80c556f590df8a23b16d06fc848998fb518de5fbe8a7430e8d10c3a3"
+    },
+    {
+      "shard": 31,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00031-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "2655c86b7c882449dda7b090782f556d8a857e78cdf56e29b26fa96b31cc1b99"
+    },
+    {
+      "shard": 32,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00032-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "7961fa092c9c81d201ec4c6a57a1faa6c55cca841b694d38a83d211ed7b3e386"
+    },
+    {
+      "shard": 33,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00033-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "0a3df284f4e0edfd98fcae19c7e94131f4ce5ff612e947cb7b9a96543986021e"
+    },
+    {
+      "shard": 34,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00034-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "30da680ecff5fda2f9fa097919396788f4bb973c825ff002eedb22526c246192"
+    },
+    {
+      "shard": 35,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00035-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "93732d2b8ed52f78a0cac3dbb10f3696e7c4e901145e235b89d8482b0d865a98"
+    },
+    {
+      "shard": 36,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00036-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "2a11bf9c123b6d5bfac28ae6b4e79259e6f5c138ad3a3ade8cfceac98a08fb27"
+    },
+    {
+      "shard": 37,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00037-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "d0b061393e00f8893968518be1e11ea1db173fe2cfbae7dda2bdd2da463dd086"
+    },
+    {
+      "shard": 38,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00038-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "e921094355be0fab922d560729813073d87ae817a0a69728539979f627864592"
+    },
+    {
+      "shard": 39,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00039-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "edeef59cc0059001b5c7021bc15eda53c7e3c16c4a4a1dcbe51e48c3d0f09891"
+    },
+    {
+      "shard": 40,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00040-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "1a773b768718a5c1406de5835e535d5ed76dd7f9945804be471fdcf45cbe5dec"
+    },
+    {
+      "shard": 41,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00041-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "71161eaf1e14d4b142ba2db67760eb802023b071eddbc454dc344d980f7ff1d6"
+    },
+    {
+      "shard": 42,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00042-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "75dafdd34006f2029ed7641d701e16f2156ea533c145586f2c4d7930197a17df"
+    },
+    {
+      "shard": 43,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00043-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "d062f3d438544afd78e925691be4ef073677b61fc7c63b3ee01ec9345afa9518"
+    },
+    {
+      "shard": 44,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00044-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "98ffd5b84e010646f7af4a1f66b63d0a644d9cb2b8b123afb3c88950b971c4ba"
+    },
+    {
+      "shard": 45,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00045-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "9ed346d32372252f86dd8a9e50786c89fc688011973f70113671dfed71744382"
+    },
+    {
+      "shard": 46,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00046-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "9c7f5d0bb438daed9f40c32405cd9fe0f442249ffff4a05d7cdc17800f685852"
+    },
+    {
+      "shard": 47,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00047-of-00048.safetensors",
+      "headerBytes": 226072,
+      "sha256": "87d9d5342274d4f98141e6276849297d8e594a8dd91741604693db2a7ce8b11b"
+    },
+    {
+      "shard": 48,
+      "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/model-00048-of-00048.safetensors",
+      "headerBytes": 297504,
+      "sha256": "be8d5a52979eb17d546a01eb42bb3e26da9e488608552f2cb5c53cd36caf4bba"
+    }
+  ],
+  "draft": {
+    "file": "dspark/model-dspark-00001.safetensors",
+    "tensorCount": 97,
+    "tensorBytes": 2301852674,
+    "headerBytes": 14744,
+    "sha256": "bb4e31be64d517aa6d1add4987b0539e19ea15dad1beaa57f07c06a9678820a6",
+    "url": "https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/resolve/262ae6830934f3512211081b8a3f16425b93a239/dspark/model-dspark-00001.safetensors"
+  }
+}

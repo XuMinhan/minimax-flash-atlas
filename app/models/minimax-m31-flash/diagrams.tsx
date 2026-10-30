@@ -1,3 +1,4 @@
+import {tensorLayout} from "./storage";
 import {MoEDiagram} from "./moe-diagram";
 import type { OpNode, Weight } from "../types";
 import type { LayerType, ExpandedStage } from "./types";
@@ -12,8 +13,8 @@ function checkpointWeightName(weight?:Weight){
 
 function InputWeightedOp({node,active,onHover,onLeave,onSelect,inputName,inputShape,weightIndex=0,inputGraphId,graphId,weightGraphId,className=""}:{node:OpNode;active:boolean;onHover:(n:OpNode)=>void;onLeave:()=>void;onSelect:(n:OpNode)=>void;inputName:string;inputShape:string;weightIndex?:number;inputGraphId:string;graphId:string;weightGraphId:string;className?:string}){
   const weight=node.weights[weightIndex];
-  const symbolicWeightShape=weight?.shape.replaceAll("6144","H").replaceAll("128","Dₕ")??"[H]";
-  return <div className={`input-weighted-op ${className}`}><div className="co-input-row"><Tensor name={inputName} shape={inputShape} graphId={inputGraphId}/><Tensor name={checkpointWeightName(weight)} shape={symbolicWeightShape} role="weight" graphId={weightGraphId}/></div><Op node={node} active={active} onHover={onHover} onLeave={onLeave} onSelect={onSelect} graphId={graphId}/></div>;
+  const symbolicWeightShape=weight?tensorLayout(weight.key,{shape:JSON.parse(weight.shape),dtype:weight.dtype}).logicalSymbol:"[H]";
+  return <div className={`input-weighted-op ${className}`}><div className="co-input-row"><Tensor name={inputName} shape={inputShape} graphId={inputGraphId}/><Tensor name={`${checkpointWeightName(weight)} · 逻辑`} shape={symbolicWeightShape} role="weight" graphId={weightGraphId}/></div><Op node={node} active={active} onHover={onHover} onLeave={onLeave} onSelect={onSelect} graphId={graphId}/></div>;
 }
 
 function StageZoom({type,stage,g,active,onHover,onLeave,onSelect,onClose}:{type:LayerType;stage:Exclude<ExpandedStage,null>;g:Record<string,OpNode>;active:string;onHover:(n:OpNode)=>void;onLeave:()=>void;onSelect:(n:OpNode)=>void;onClose:()=>void}){
