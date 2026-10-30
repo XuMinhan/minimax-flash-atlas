@@ -10,8 +10,8 @@
 
 - 所有 60 层均为 MSA；前 3 层 Dense FFN，后 57 层 MoE。层选择同步真实权重 key 和分片。
 - 注意力展开保留五路投影、Q/K/V 分支、Indexer 评分/选块、两套缓存、两种 mask、QK/scale/softmax/PV 和 O projection。
-- Dense FFN 拆解 Gate/Up、Split、非对称裁剪、SwiGLU-OAI、Down；MoE 展示 FP32 Router、Top-4、shared、归一化与合并。
-- 45 个算子/模块公式和逐节点证据；代码片段重新从用户提供的固定 vLLM 提交提取，非简单替换模型名称。
+- Dense FFN 拆解 Gate/Up、Split、非对称裁剪、SwiGLU-OAI、Down；MoE 拆解 Top-4 选路、路由权重、每专家 Gate/Up → SwiGLU-OAI → Down、加权归并及同样的共享专家链路。
+- 54 个算子/模块公式和逐节点证据；代码片段重新从用户提供的固定 vLLM 提交提取，非简单替换模型名称。
 - 完整 89,632 个 tensor keys / 48 分片的搜索目录；5,277 个实际 Safetensors 文件头条目。
 - 视觉输入/输出链、独立 DSpark 配置说明，以及七张由 Archify typed JSON 生成的数据流补充图。
 - 原项目类型、构建、语义与路由测试保留，并新增 Flash 专属检查。
@@ -31,7 +31,7 @@ Vite 使用相对路径，生产产物在 `dist/`，可部署到 GitHub Pages �
 
 ## 研究成果
 
-[成果索引](docs/models/minimax-m31-flash/README.md)、[架构](docs/models/minimax-m31-flash/architecture.md)、[45 个模块公式](docs/models/minimax-m31-flash/formulas.md)、[符号](docs/models/minimax-m31-flash/symbols.md)、[实现](docs/models/minimax-m31-flash/implementation.md)、[证据矩阵](docs/models/minimax-m31-flash/evidence.md)。
+[成果索引](docs/models/minimax-m31-flash/README.md)、[架构](docs/models/minimax-m31-flash/architecture.md)、[54 个模块公式](docs/models/minimax-m31-flash/formulas.md)、[符号](docs/models/minimax-m31-flash/symbols.md)、[实现](docs/models/minimax-m31-flash/implementation.md)、[证据矩阵](docs/models/minimax-m31-flash/evidence.md)。
 
 HF checkpoint：`262ae6830934f3512211081b8a3f16425b93a239`。vLLM：`ced6857afa0ea7b2e3f0846a62e1394e90f15607`。主配置以 Flash checkpoint 为准，不采用配置类中的旧 Preview 默认值。没有改动用户的 vLLM checkout。
 

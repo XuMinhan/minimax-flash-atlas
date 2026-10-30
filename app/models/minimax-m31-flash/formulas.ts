@@ -1,3 +1,4 @@
+import {MOE_MATH,MOE_STEPS,SWIGLU_STEPS,MOE_TERMS} from "./moe-math";
 import type { OpNode, OpKind } from "../types";
 
 export const SIMPLE_FORMULA: Partial<Record<OpKind,string>> = {
@@ -48,7 +49,7 @@ export const FORMULA_TERMS_BY_ID: Partial<Record<string,readonly FormulaTerm[]>>
   "s-pv":[["P","当前 rank 的 sparse probability"],["paged V","主 Paged KV Cache 中的 V pages"],["block_indices","与 Q×K 阶段相同的 Top-16 块顺序"],["O","当前 rank 的 context heads · 8192/TP"]],
   "s-topk":[["C","block scores"],["𝓛ᵢ","当前 query 的 local block 集合"],["10²⁹","local块的有限优先分数"],["K_block","sparse_topk_blocks = 16"],["𝓑 / block_indices","有效选中块id，不包含-1"],["𝓒","选中块展开且未越过T的token位置"],["𝓥","𝓒内满足因果约束的token位置"]],
   "s-router":[["Û","Post-attn RMSNorm 输出"],["Wrouter","block_sparse_moe.gate.weight"],["E","num_local_experts = 128"],["R","router_logits · [B,S,E]"]],
-  "s-experts":[["R","FP32 router_logits · [B,S,E]"],["σ","逐元素 sigmoid 函数"],["sₑ","专家 e 的 sigmoid 路由分数 σ(Rₑ)"],["b_corr","e_score_correction_bias；只影响专家选择"],["K","num_experts_per_tok = 4"],["𝓔","按 s+b_corr 选出的 Top-K expert 集合"],["e / j","选中集合中的 expert 索引"],["ŵₑ","专家 e 的归一化混合权重"],["s_route","routed_scaling_factor = 2.0"],["Û","Post-attn RMSNorm 输出；每个专家的输入"],["Eₑ(Û)","第 e 个 expert 对 Û 的输出"],["Yᵣₒᵤₜₑd","4 个选中专家加权归并后的 routed output"]],
+  "s-experts":MOE_TERMS,
   "d-qkv":[["Nₕ","num_attention_heads = 64"],["Nₖᵥ","num_key_value_heads = 4"],["Dₕ","head_dim = 128"],["TP","tensor parallel size"],["Z","当前 rank 的 packed QKV"]],
   "d-split":[["Nₕ","num_attention_heads = 64"],["Nₖᵥ,rank","max(1,4/TP)"],["Dₕ","head_dim = 128"],["Q / K / V","当前 rank 的三个输出"]],
   "d-ropeq":[["Dᵣ","rotary_dim = 64"],["Dₕ","head_dim = 128"],["θbase","rope_theta = 10000000"],["p","token position"],["Qᵣ","旋转后的 Q"]],
@@ -78,7 +79,7 @@ export const FORMULA_TERMS_BY_ID: Partial<Record<string,readonly FormulaTerm[]>>
   "s-scale":[["A","未缩放 sparse scores"],["Ā","缩放后的 sparse scores"],["Dₕ","head_dim = 128"]],
   "s-mask":[["Ā","selected K 上的缩放 scores"],["valid_token","候选 blocks 内的 causal / padding 判定"],["Ã","token mask 后的 selected scores"],["𝓒 / 𝓥","候选token集合 / 因果有效子集"]],
   "s-softmax":[["Ã","mask 后的 sparse scores"],["P","selected KV 上的概率"],["𝓥","当前query/group有效候选token集合"]],
-  "s-shared":[["u","Shared Expert 输入 · [B,S,H]"],["W₁,s","shared gate_proj.weight"],["W₃,s","shared up_proj.weight"],["W₂,s","shared down_proj.weight"],["H","hidden_size = 6144"],["H_shared","shared_intermediate_size = 3072"],["E_shared(u)","Shared Expert 输出"]],
+  "s-shared":MOE_TERMS,
   "s-sum":[["Y_routed","FusedMoE 已完成加权归并的输出"],["Y_shared","Shared Expert 输出"],["Y_moe","两路逐元素相加后的 MoE 输出"]],
 };
 
@@ -109,11 +110,14 @@ FORMULA_TERMS_BY_ID["d-down"]=[...(FORMULA_TERMS_BY_ID["d-down"]??[]),["r / Yffn
 FORMULA_TERMS_BY_ID["s-oproj"]=[...(FORMULA_TERMS_BY_ID["s-oproj"]??[]),["r / Yattn⁽ʳ⁾ / Yattn","TP rank / 本地partial / 在post-attn norm归并的逻辑结果"]];
 
 export const FORMULA_STEPS_BY_ID: Partial<Record<string,readonly FormulaStep[]>> = {
-  "s-experts":[
-    {title:"1 · 得分与选择",formula:String.raw`s=\sigma(R),\qquad \mathcal E=\operatorname{TopK}_{K}(s+b_{corr})`,explanation:"R 是 Router 输出的 128 个 FP32 logits；σ 对每个 logit 做 sigmoid，得到路由分数 s。b_corr 是 correction bias，只在选择专家时加到 s 上；K=4，所以 𝓔 表示当前 token 选中的 4 个专家。目的：确定这个 token 应交给哪些专家计算。"},
-    {title:"2 · 生成混合权重",formula:String.raw`\hat w_e=s_{route}\,\frac{s_e}{\sum_{j\in\mathcal E}s_j}`,explanation:"e 和 j 都是 𝓔 中的专家索引；sₑ 是专家 e 未加 correction bias 的 sigmoid 分数。分母把 4 个入选专家的分数归一化，再乘 s_route=2.0 得到 ŵₑ。目的：决定每个入选专家对最终 routed output 的贡献比例；correction bias 不进入该权重。"},
-    {title:"3 · 专家计算与归并",formula:String.raw`Y_{\mathrm{routed}}=\sum_{e\in\mathcal E}\hat w_eE_e(\hat U)`,explanation:"Û 是 Post-attn RMSNorm 输出，也是各专家共享的输入；Eₑ(Û) 是专家 e 对该 token 的计算结果。每个结果乘对应的 ŵₑ，再对 4 个专家求和，得到 Y_routed。目的：把多个专家结果还原成每个 token 的一个 [H] 输出向量。"},
+  "s-experts":MOE_STEPS,
+  "s-shared":[
+    {title:"1 · 独立的共享投影",formula:MOE_MATH.sharedgateup,explanation:"同一个 token 输入 x=Û；共享专家始终执行，Gate/Up 各生成 3072 维特征，权重独立于 routed experts。"},
+    ...SWIGLU_STEPS.map((step,i)=>({...step,title:`${i+2} · ${step.title.slice(4)}`})),
+    {title:"最后 · Shared Down",formula:MOE_MATH.shareddown,explanation:"投回 6144 维，不乘 routed 权重；逻辑上与四路加权结果相加。TP 的局部计算与通信由运行时管理。"},
   ],
+  "s-moe-swiglu":SWIGLU_STEPS,
+  "s-moe-sharedswiglu":SWIGLU_STEPS,
 };
 
 export function formulaTerms(node:OpNode){
@@ -170,8 +174,10 @@ export const LATEX_BY_ID: Record<string,string> = {
   "s-oproj":String.raw`\begin{aligned}Y_{attn}^{(r)}&=\operatorname{Concat}(O^{(r)})(W_O^{(r)})^\top\\Y_{attn}&=\sum_rY_{attn}^{(r)}\quad\text{(next post-attention norm)}\end{aligned}`,
   "s-addattn":String.raw`U=X_l+Y_{\mathrm{attn}}`,
   "s-router":String.raw`R=\hat U W_{router}^\top\in\mathbb R^{B\times S\times E}`,
-  "s-experts":String.raw`\begin{aligned}s&=\sigma(R),\quad\mathcal E=\operatorname{TopK}_K(s+b_{corr})\\\hat w_e&=s_{route}\frac{s_e}{\sum_{j\in\mathcal E}s_j}\\Y_{routed}&=\sum_{e\in\mathcal E}\hat w_eE_e(\hat U)\end{aligned}`,
-  "s-shared":String.raw`E_{\mathrm{shared}}(u)=W_{2,s}\operatorname{SwiGLUOAI}(W_{1,s}u,W_{3,s}u)`,
+  "s-experts":String.raw`\begin{aligned}s&=\sigma(R),\quad\mathcal E=\operatorname{TopK}_4(s+b_{corr})\\\hat w_e&=2s_e/\sum_{j\in\mathcal E}s_j\\g_e&=xW_{1,e}^{\top},\quad u_e=xW_{3,e}^{\top}\\\bar g_e&=\min(g_e,7),\quad\bar u_e=\operatorname{clip}(u_e,-7,7)\\z_e&=\bar g_e\odot\sigma(1.702\bar g_e)\odot(\bar u_e+1)\\y_e&=z_eW_{2,e}^{\top},\quad Y_{routed}=\sum_{e\in\mathcal E}\hat w_e y_e\end{aligned}`,
+  "s-shared":String.raw`\begin{aligned}g_s&=xW_{gate,s}^{\top},\quad u_s=xW_{up,s}^{\top}\\\bar g_s&=\min(g_s,7),\quad\bar u_s=\operatorname{clip}(u_s,-7,7)\\z_s&=\bar g_s\odot\sigma(1.702\bar g_s)\odot(\bar u_s+1)\\Y_{shared}&=z_sW_{down,s}^{\top}\end{aligned}`,
   "s-sum":String.raw`Y_{\mathrm{moe}}=Y_{\mathrm{routed}}+E_{\mathrm{shared}}(\hat U)`,
   "s-addout":String.raw`X_{l+1}=U+Y_{\mathrm{moe}}`,
 };
+
+for(const key of Object.keys(MOE_MATH))FORMULA_TERMS_BY_ID[`s-moe-${key}`]=MOE_TERMS;

@@ -1,3 +1,4 @@
+import {withMoeDetails} from "./moe";
 import type { Node, Weight, OpNode, OpKind } from "../types";
 import { verifyWeight, denseNodes, sparseNodes, layerShard } from "./data";
 import { CODE_BY_ID, QKV_INDEX_PROJECTION_SECTIONS, QKV_INDEX_PROJECTION_SYMBOLS } from "./evidence";
@@ -71,7 +72,7 @@ export function sparseGraph(layer: number): Record<string, OpNode> {
 /** Attention topology and FFN schedule are independent in Flash. */
 export function flashGraph(layer:number): Record<string,OpNode>{
  const sparse=sparseGraph(layer);
- if(layer>=3)return sparse;
+ if(layer>=3)return withMoeDetails(sparse);
  const dense=denseGraph(layer);
  const attention={...sparse};
  for(const id of ["router","experts","shared","sum","addout"])delete attention[id];

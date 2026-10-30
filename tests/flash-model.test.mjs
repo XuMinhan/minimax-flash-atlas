@@ -61,6 +61,36 @@ try{
   assert.match(html,/MSA.*Dense|MSA.*SwiGLU/);assert.match(html,/选择实际 Decoder 层/);assert.match(html,/Archify 验证图/);
   assert.doesNotMatch(html,/GQA \+ Partial RoPE \+ SwiGLU|59 shards|869 GB/);
  });
+ const {MoEDiagram,MOE_DETAIL_EDGES}=await server.ssrLoadModule('/app/models/minimax-m31-flash/moe-diagram.tsx');
+ const {FORMULA_STEPS_BY_ID}=await server.ssrLoadModule('/app/models/minimax-m31-flash/formulas.ts');
+ test('Flash MoE exposes routed and shared activations between their own projections',()=>{
+  const g=flashGraph(3),html=renderToStaticMarkup(createElement(MoEDiagram,{g,active:'',onHover:()=>{},onLeave:()=>{},onSelect:()=>{},onClose:()=>{}}));
+  const connections=new Set(MOE_DETAIL_EDGES.map(e=>`${e.from}>${e.to}`));
+  for(const lane of ['expert','shared']){
+   assert.ok(connections.has(`md-${lane}gateup>md-${lane}swiglu`));
+   assert.ok(connections.has(`md-${lane}swiglu>md-${lane}down`));
+   assert.equal(g[`${lane}swiglu`].weights.length,0);
+   assert.match(html,new RegExp(`data-graph-id="md-${lane}swiglu"`));
+  }
+  assert.ok(connections.has('md-choice>md-expertgateup'));
+  assert.ok(connections.has('md-routeweights>md-expertcombine'));
+  assert.ok(!MOE_DETAIL_EDGES.some(e=>e.from==='md-routeweights'&&e.to.includes('shared')));
+  assert.match(html,/SwiGLU-OAI · per expert/);assert.match(html,/SwiGLU-OAI · shared/);
+  assert.match(html,/1.702/);assert.match(html,/min\(g,7\)/);assert.match(html,/clip\(u,−7,7\)/);
+ });
+ test('Flash fused expert inspector explains activation, down projection and weighted output',()=>{
+  const g=flashGraph(3);assert.equal(FORMULA_STEPS_BY_ID['s-experts'].length,8);
+  for(const id of ['experts','shared','expertswiglu','sharedswiglu']){
+   const html=renderToStaticMarkup(createElement(DetailPanel,{node:g[id],tab:'formula',setTab:()=>{},pinned:true,onClear:()=>{},expanded:'ffn',layerType:'sparse'}));
+   assert.match(html,/Gate/);assert.match(html,/Up/);assert.match(html,/Down/);
+   assert.match(html,/1.702/);assert.match(html,/常量/);assert.match(html,/formula-terms/);
+   assert.doesNotMatch(html,/katex-error/);
+  }
+  assert.ok(g.expertgateup.weights.every(w=>/\.w[13]\./.test(w.key)));
+  assert.ok(g.expertdown.weights.every(w=>/\.w2\./.test(w.key)));
+  assert.ok(g.choice.weights.every(w=>/correction_bias/.test(w.key)));
+  for(const steps of Object.values(FORMULA_STEPS_BY_ID))for(const step of steps)assert.doesNotThrow(()=>katex.renderToString(step.formula,{throwOnError:true,strict:false}));
+ });
  test('Seven published Archify documents exactly match their delivered artifact hashes',()=>{
   for(const name of ['overview','indexer','attention','dense-ffn','moe','vision','dspark']){
    const spec=json(`docs/models/minimax-m31-flash/diagrams/${name}.json`);assert.equal(spec.meta.quality_profile,'showcase');

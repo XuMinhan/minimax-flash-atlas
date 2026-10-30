@@ -41,3 +41,33 @@
 .atlas-app:where([data-model="minimax-m31-flash"]).stage-expanded .map-panel{grid-template-rows:auto minmax(0,1fr)}
 :where([data-model="minimax-m31-flash"]) :is(.flash-generated,.flash-inventory){flex:1;min-height:0;overflow:auto}
 :where([data-model="minimax-m31-flash"]) .map-panel:has(>.flash-research){display:block;overflow:auto}
+
+/* Three explicit MoE lanes; content-sized rows keep the activation formula readable. */
+:where([data-model="minimax-m31-flash"]) .moe-detail-zoom{display:flex;flex-direction:column;min-height:0}
+:where([data-model="minimax-m31-flash"]) .moe-explanation-bar{display:flex;gap:var(--space-12);align-items:center;flex-wrap:wrap;padding:var(--space-10) var(--space-20);border-bottom:1px solid var(--line);font-size:var(--text-xs);color:var(--muted)}
+:where([data-model="minimax-m31-flash"]) .moe-explanation-bar button{font:inherit;color:var(--green);background:var(--field);border:1px solid var(--line);padding:var(--space-8);border-radius:var(--radius-6);cursor:pointer}
+:where([data-model="minimax-m31-flash"]) .moe-detail-zoom>.graph-pan-viewport{flex:1;min-height:0}
+:where([data-model="minimax-m31-flash"]) .graph-pan-content .moe-detail-graph{position:relative;display:grid;grid-template-columns:260px 310px 310px;grid-template-rows:repeat(8,minmax(76px,auto));gap:38px 72px;width:1024px;max-width:none;padding:var(--space-24);margin:0 auto;align-items:center;justify-items:center;box-sizing:content-box}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>.op-node{width:100%;max-width:100%;min-width:0;height:auto;min-height:80px;gap:var(--space-8);padding:var(--space-12);box-sizing:border-box}
+:where([data-model="minimax-m31-flash"]) .moe-detail-op :is(small,b,code){white-space:normal;overflow-wrap:anywhere;line-height:1.5}
+:where([data-model="minimax-m31-flash"]) .moe-detail-op small{font-size:11px}
+:where([data-model="minimax-m31-flash"]) .moe-detail-op b{font-size:15px}
+:where([data-model="minimax-m31-flash"]) .moe-detail-op code{font-size:12px;color:var(--muted)}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>[data-graph-id="md-input"]{grid-area:1/1/2/4}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>[data-graph-id="md-router"]{grid-area:2/1}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>[data-graph-id="md-x"]{grid-area:2/2}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>[data-graph-id="md-xs"]{grid-area:2/3}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>[data-graph-id="md-choice"]{grid-area:3/1}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>[data-graph-id="md-routeweights"]{grid-area:4/1}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>[data-graph-id="md-expertgateup"]{grid-area:3/2}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>[data-graph-id="md-expertswiglu"]{grid-area:4/2}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>[data-graph-id="md-expertdown"]{grid-area:5/2}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>[data-graph-id="md-expertcombine"]{grid-area:6/2}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>[data-graph-id="md-sharedgateup"]{grid-area:3/3}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>[data-graph-id="md-sharedswiglu"]{grid-area:4/3}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>[data-graph-id="md-shareddown"]{grid-area:5/3}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>[data-graph-id="md-sharedout"]{grid-area:6/3}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>[data-graph-id="md-sum"]{grid-area:7/2/8/4;width:310px}
+:where([data-model="minimax-m31-flash"]) .moe-detail-graph>[data-graph-id="md-output"]{grid-area:8/2/9/4}
+:where([data-model="minimax-m31-flash"]) .moe-activation-note{grid-area:7/1/9/2;align-self:start;font-size:var(--text-xs);line-height:1.8;color:var(--muted);padding:var(--space-12);border:1px solid var(--line);border-radius:var(--radius-8);background:var(--field)}
+:where([data-model="minimax-m31-flash"]) .moe-activation-note b{color:var(--green)}

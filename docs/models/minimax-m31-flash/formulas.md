@@ -616,52 +616,159 @@ $$
 
 ## s-experts · Fused Top-4 Routing + Experts
 
-内部完成sigmoid、bias选路、Top-4、无bias分数归一化及专家加权输出。
+Top-4 选路后，每个入选专家执行 Gate/Up → SwiGLU-OAI → Down，最后按路由权重加权求和。展开图逐步展示这条完整链路。
 
 输入：`[B,S,6144] + [B,S,128]` → 输出：`[B,S,6144]`。
 
 $$
-\begin{aligned}s&=\sigma(R),\quad\mathcal E=\operatorname{TopK}_K(s+b_{corr})\\\hat w_e&=s_{route}\frac{s_e}{\sum_{j\in\mathcal E}s_j}\\Y_{routed}&=\sum_{e\in\mathcal E}\hat w_eE_e(\hat U)\end{aligned}
+\begin{aligned}s&=\sigma(R),\quad\mathcal E=\operatorname{TopK}_4(s+b_{corr})\\\hat w_e&=2s_e/\sum_{j\in\mathcal E}s_j\\g_e&=xW_{1,e}^{\top},\quad u_e=xW_{3,e}^{\top}\\\bar g_e&=\min(g_e,7),\quad\bar u_e=\operatorname{clip}(u_e,-7,7)\\z_e&=\bar g_e\odot\sigma(1.702\bar g_e)\odot(\bar u_e+1)\\y_e&=z_eW_{2,e}^{\top},\quad Y_{routed}=\sum_{e\in\mathcal E}\hat w_e y_e\end{aligned}
 $$
 
-bias只作用于选择；选中专家权重来自原始sigmoid scores并归一化乘2。PP=1的跨TP输出归并可延迟至下一norm。
+SwiGLU-OAI 位于每个专家两次线性投影之间；不负责选专家。图示为逻辑拆解，实际由 FusedMoEFactory 调度。
 
-- **R**：FP32 router_logits · [B,S,E]
-- **σ**：逐元素 sigmoid 函数
-- **sₑ**：专家 e 的 sigmoid 路由分数 σ(Rₑ)
-- **b_corr**：e_score_correction_bias；只影响专家选择
-- **K**：num_experts_per_tok = 4
-- **𝓔**：按 s+b_corr 选出的 Top-K expert 集合
-- **e / j**：选中集合中的 expert 索引
-- **ŵₑ**：专家 e 的归一化混合权重
-- **s_route**：routed_scaling_factor = 2.0
-- **Û**：Post-attn RMSNorm 输出；每个专家的输入
-- **Eₑ(Û)**：第 e 个 expert 对 Û 的输出
-- **Yᵣₒᵤₜₑd**：4 个选中专家加权归并后的 routed output
+### 1 · Sigmoid 打分与 Top-4 选路
+
+$$
+s=\sigma(R),\qquad\mathcal E=\operatorname{TopK}_{4}(s+b_{corr})
+$$
+
+对当前 token 的 128 个 FP32 logits R 做 sigmoid 得 s。correction bias 只用于 Top-4 选择，得到专家集合 𝓔；保留未加 bias 的原分数 s。
+
+### 2 · 计算四个专家的混合权重
+
+$$
+\hat w_e=2\frac{s_e}{\sum_{j\in\mathcal E}s_j},\quad e\in\mathcal E,\quad\sum_e\hat w_e=2
+$$
+
+只取 4 个入选专家的原始分数，归一化后乘 routed_scaling_factor=2。这四个 ŵ 的和为 2；它们控制专家输出的贡献，不替代专家内部的 SwiGLU-OAI。
+
+### 3 · 每个入选专家分别投影 Gate / Up
+
+$$
+\begin{aligned}g_e&=xW_{1,e}^{\top},\quad u_e=xW_{3,e}^{\top}\\x&\in\mathbb R^{6144},\quad g_e,u_e\in\mathbb R^{3072}\end{aligned}
+$$
+
+x=Û 是一个 token 的归一化输入。每个 e∈𝓔 有自己的 W1（Gate）与 W3（Up），各把 6144 维映射到 3072 维。逻辑形状 W1,W3=[3072,6144]；运行时 w13 按 [全部 Gate; 全部 Up] 打包，uninterleave 指两半布局。
+
+### 4 · 先截断两个分支
+
+$$
+\bar g=\min(g,c),\quad\bar u=\operatorname{clip}(u,-c,c),\quad c=7
+$$
+
+g 来自 Gate 投影，u 来自 Up 投影。Gate 只限制上界，负值不会被截到 −7；Up 同时限制上下界。先截断，再将截断后的 g 送入 sigmoid。
+
+### 5 · Gate 控制每个特征通道
+
+$$
+a=\bar g\odot\sigma(\alpha\bar g),\quad\alpha=1.702
+$$
+
+σ 是逐元素 sigmoid；α 调整 sigmoid 的斜率。a 是带符号的特征门控值，并非概率分布。这里的 Gate 分支位于单个专家内部，与产生 128 个选路分数的 Router 是两套计算。
+
+### 6 · 调制 Up 内容，再交给 Down
+
+$$
+z=a\odot(\bar u+\beta),\quad\beta=1
+$$
+
+Up 提供内容特征；+1 是配置中的常量 β，不是可训练 bias。⊙ 表示逐元素乘，输出仍为 3072 维。SwiGLU-OAI 自身没有权重，负责非线性门控；之后 Down 才把特征投回 6144 维。普通 SiLU(g)⊙u 不包含这里的 α=1.702、β=1 与截断。
+
+### 7 · 各专家 Down 投影
+
+$$
+y_e=z_eW_{2,e}^{\top}\in\mathbb R^{6144},\quad W_{2,e}\in\mathbb R^{6144\times3072}
+$$
+
+每个专家用自己的 W2 把激活后的 z_e 从 3072 维投回 6144 维，得到 y_e。这里的矩阵是逻辑权重；checkpoint 中路由专家是 NVFP4 packed，不能把 U8 存储形状当作逻辑矩阵形状。
+
+### 8 · 按路由权重归并
+
+$$
+Y_{routed}=\sum_{e\in\mathcal E}\hat w_e y_e\in\mathbb R^{6144}
+$$
+
+每个 y_e 乘对应 ŵ_e，再对 4 个专家求和；共享专家输出另行相加。公式展示全局逻辑结果，实际 TP/EP 的分片、重排和通信由后端决定；PP=1 的跨 TP 归并可以延迟至下一 norm。
+
+- **x / Û**：一个 token 的 Post-attn RMSNorm 输出，[6144]；逐 token 应用
+- **R / s / b_corr**：128 个 FP32 logits / sigmoid 路由分数 / 仅用于选择的 correction bias
+- **𝓔 / e / j**：每 token 选中的 4 个专家集合 / 集合内专家索引
+- **ŵ_e**：原 sigmoid 分数归一化再乘 2 得到的混合权重
+- **W1 / W3 / W2**：专家 Gate / Up / Down 逻辑矩阵；NVFP4 存储另见权重详情
+- **g / u / z**：Gate 投影 / Up 投影 / SwiGLU-OAI 激活特征，各 [3072]
+- **c / α / β**：截断阈值 7 / sigmoid 斜率 1.702 / Up 常量偏移 1
+- **σ / ⊙**：逐元素 sigmoid / 逐元素乘，不是跨专家归一化
+- **y_e / Y_routed**：单个路由专家输出 / 四个专家加权和，各 [6144]
+- **下标 s / Y_shared**：共享专家 / 无需 Top-4 与路由权重的共享输出
 
 [实现定位](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L247-L267)。
 
+
 ## s-shared · Shared Expert ×1
 
-所有token经过一套共享SwiGLU-OAI专家，不经过Top-4选择。
+所有 token 都执行一套 Gate/Up → SwiGLU-OAI → Down，共享专家不参与 Top-4，不乘 routed 权重。
 
 输入：`[B,S,6144]` → 输出：`[B,S,6144]`。
 
 $$
-E_{\mathrm{shared}}(u)=W_{2,s}\operatorname{SwiGLUOAI}(W_{1,s}u,W_{3,s}u)
+\begin{aligned}g_s&=xW_{gate,s}^{\top},\quad u_s=xW_{up,s}^{\top}\\\bar g_s&=\min(g_s,7),\quad\bar u_s=\operatorname{clip}(u_s,-7,7)\\z_s&=\bar g_s\odot\sigma(1.702\bar g_s)\odot(\bar u_s+1)\\Y_{shared}&=z_sW_{down,s}^{\top}\end{aligned}
 $$
 
 共享宽3072，使用相同clamp/α/β。模块传给FusedMoEFactory统一调度，不声称Python forward单独调用它。
 
-- **u**：Shared Expert 输入 · [B,S,H]
-- **W₁,s**：shared gate_proj.weight
-- **W₃,s**：shared up_proj.weight
-- **W₂,s**：shared down_proj.weight
-- **H**：hidden_size = 6144
-- **H_shared**：shared_intermediate_size = 3072
-- **E_shared(u)**：Shared Expert 输出
+### 1 · 独立的共享投影
+
+$$
+g_s=xW_{gate,s}^{\top},\quad u_s=xW_{up,s}^{\top}\in\mathbb R^{3072}
+$$
+
+同一个 token 输入 x=Û；共享专家始终执行，Gate/Up 各生成 3072 维特征，权重独立于 routed experts。
+
+### 2 · 先截断两个分支
+
+$$
+\bar g=\min(g,c),\quad\bar u=\operatorname{clip}(u,-c,c),\quad c=7
+$$
+
+g 来自 Gate 投影，u 来自 Up 投影。Gate 只限制上界，负值不会被截到 −7；Up 同时限制上下界。先截断，再将截断后的 g 送入 sigmoid。
+
+### 3 · Gate 控制每个特征通道
+
+$$
+a=\bar g\odot\sigma(\alpha\bar g),\quad\alpha=1.702
+$$
+
+σ 是逐元素 sigmoid；α 调整 sigmoid 的斜率。a 是带符号的特征门控值，并非概率分布。这里的 Gate 分支位于单个专家内部，与产生 128 个选路分数的 Router 是两套计算。
+
+### 4 · 调制 Up 内容，再交给 Down
+
+$$
+z=a\odot(\bar u+\beta),\quad\beta=1
+$$
+
+Up 提供内容特征；+1 是配置中的常量 β，不是可训练 bias。⊙ 表示逐元素乘，输出仍为 3072 维。SwiGLU-OAI 自身没有权重，负责非线性门控；之后 Down 才把特征投回 6144 维。普通 SiLU(g)⊙u 不包含这里的 α=1.702、β=1 与截断。
+
+### 最后 · Shared Down
+
+$$
+Y_{shared}=z_sW_{down,s}^{\top}\in\mathbb R^{6144}
+$$
+
+投回 6144 维，不乘 routed 权重；逻辑上与四路加权结果相加。TP 的局部计算与通信由运行时管理。
+
+- **x / Û**：一个 token 的 Post-attn RMSNorm 输出，[6144]；逐 token 应用
+- **R / s / b_corr**：128 个 FP32 logits / sigmoid 路由分数 / 仅用于选择的 correction bias
+- **𝓔 / e / j**：每 token 选中的 4 个专家集合 / 集合内专家索引
+- **ŵ_e**：原 sigmoid 分数归一化再乘 2 得到的混合权重
+- **W1 / W3 / W2**：专家 Gate / Up / Down 逻辑矩阵；NVFP4 存储另见权重详情
+- **g / u / z**：Gate 投影 / Up 投影 / SwiGLU-OAI 激活特征，各 [3072]
+- **c / α / β**：截断阈值 7 / sigmoid 斜率 1.702 / Up 常量偏移 1
+- **σ / ⊙**：逐元素 sigmoid / 逐元素乘，不是跨专家归一化
+- **y_e / Y_routed**：单个路由专家输出 / 四个专家加权和，各 [6144]
+- **下标 s / Y_shared**：共享专家 / 无需 Top-4 与路由权重的共享输出
 
 [实现定位](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L236-L267)。
+
 
 ## s-sum · Add Routed + Shared
 
@@ -896,3 +1003,284 @@ $$
 - **accept/reject**：算法概念，具体接受规则未验证
 
 [实现定位](https://huggingface.co/MiniMaxAI/MiniMax-M3.1-Flash/blob/262ae6830934f3512211081b8a3f16425b93a239/dspark/config.json)。
+
+## s-moe-choice · Sigmoid + Top-4
+
+s=σ(R)；按 s+b_corr 选 4 个专家。bias 只改变选谁，不进入混合权重。
+
+输入：`[128]` → 输出：`[4] + [128]`。
+
+$$
+s=\sigma(R),\qquad\mathcal E=\operatorname{TopK}_{4}(s+b_{corr})
+$$
+
+s=σ(R)；按 s+b_corr 选 4 个专家。bias 只改变选谁，不进入混合权重。
+
+- **x / Û**：一个 token 的 Post-attn RMSNorm 输出，[6144]；逐 token 应用
+- **R / s / b_corr**：128 个 FP32 logits / sigmoid 路由分数 / 仅用于选择的 correction bias
+- **𝓔 / e / j**：每 token 选中的 4 个专家集合 / 集合内专家索引
+- **ŵ_e**：原 sigmoid 分数归一化再乘 2 得到的混合权重
+- **W1 / W3 / W2**：专家 Gate / Up / Down 逻辑矩阵；NVFP4 存储另见权重详情
+- **g / u / z**：Gate 投影 / Up 投影 / SwiGLU-OAI 激活特征，各 [3072]
+- **c / α / β**：截断阈值 7 / sigmoid 斜率 1.702 / Up 常量偏移 1
+- **σ / ⊙**：逐元素 sigmoid / 逐元素乘，不是跨专家归一化
+- **y_e / Y_routed**：单个路由专家输出 / 四个专家加权和，各 [6144]
+- **下标 s / Y_shared**：共享专家 / 无需 Top-4 与路由权重的共享输出
+
+[实现定位](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L247-L267)。
+
+
+## s-moe-weights · Renormalize × 2
+
+gather 选中专家的原始分数，除以这 4 个分数之和，再乘 2；四个混合权重之和是 2。
+
+输入：`[4] + [128]` → 输出：`[4]`。
+
+$$
+\hat w_e=2\frac{s_e}{\sum_{j\in\mathcal E}s_j},\quad e\in\mathcal E,\quad\sum_e\hat w_e=2
+$$
+
+gather 选中专家的原始分数，除以这 4 个分数之和，再乘 2；四个混合权重之和是 2。
+
+- **x / Û**：一个 token 的 Post-attn RMSNorm 输出，[6144]；逐 token 应用
+- **R / s / b_corr**：128 个 FP32 logits / sigmoid 路由分数 / 仅用于选择的 correction bias
+- **𝓔 / e / j**：每 token 选中的 4 个专家集合 / 集合内专家索引
+- **ŵ_e**：原 sigmoid 分数归一化再乘 2 得到的混合权重
+- **W1 / W3 / W2**：专家 Gate / Up / Down 逻辑矩阵；NVFP4 存储另见权重详情
+- **g / u / z**：Gate 投影 / Up 投影 / SwiGLU-OAI 激活特征，各 [3072]
+- **c / α / β**：截断阈值 7 / sigmoid 斜率 1.702 / Up 常量偏移 1
+- **σ / ⊙**：逐元素 sigmoid / 逐元素乘，不是跨专家归一化
+- **y_e / Y_routed**：单个路由专家输出 / 四个专家加权和，各 [6144]
+- **下标 s / Y_shared**：共享专家 / 无需 Top-4 与路由权重的共享输出
+
+[实现定位](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L247-L267)。
+
+
+## s-moe-gateup · Expert Gate + Up
+
+每个入选专家各用自己的 W1 / W3，将同一个 6144 维 x 投影成两个 3072 维分支。逻辑 W1,W3=[3072,6144]；w13 按全部 Gate 在前、全部 Up 在后打包。NVFP4 U8 存储形状见权重，不能当逻辑形状。
+
+输入：`[6144] + [4]` → 输出：`2 × [3072] / expert`。
+
+$$
+\begin{aligned}g_e&=xW_{1,e}^{\top},\quad u_e=xW_{3,e}^{\top}\\x&\in\mathbb R^{6144},\quad g_e,u_e\in\mathbb R^{3072}\end{aligned}
+$$
+
+每个入选专家各用自己的 W1 / W3，将同一个 6144 维 x 投影成两个 3072 维分支。逻辑 W1,W3=[3072,6144]；w13 按全部 Gate 在前、全部 Up 在后打包。NVFP4 U8 存储形状见权重，不能当逻辑形状。
+
+- **x / Û**：一个 token 的 Post-attn RMSNorm 输出，[6144]；逐 token 应用
+- **R / s / b_corr**：128 个 FP32 logits / sigmoid 路由分数 / 仅用于选择的 correction bias
+- **𝓔 / e / j**：每 token 选中的 4 个专家集合 / 集合内专家索引
+- **ŵ_e**：原 sigmoid 分数归一化再乘 2 得到的混合权重
+- **W1 / W3 / W2**：专家 Gate / Up / Down 逻辑矩阵；NVFP4 存储另见权重详情
+- **g / u / z**：Gate 投影 / Up 投影 / SwiGLU-OAI 激活特征，各 [3072]
+- **c / α / β**：截断阈值 7 / sigmoid 斜率 1.702 / Up 常量偏移 1
+- **σ / ⊙**：逐元素 sigmoid / 逐元素乘，不是跨专家归一化
+- **y_e / Y_routed**：单个路由专家输出 / 四个专家加权和，各 [6144]
+- **下标 s / Y_shared**：共享专家 / 无需 Top-4 与路由权重的共享输出
+
+[实现定位](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L247-L267)。
+
+
+## s-moe-swiglu · SwiGLU-OAI · per expert
+
+对 Gate 先做上界 min(g,7)，对 Up 做 clip(u,−7,7)，再计算 ḡ·sigmoid(1.702ḡ)·(ū+1)。这是专家内部的逐通道非线性门控，激活本身没有可训练权重；输出宽度仍为 3072。
+
+输入：`2 × [3072] / expert` → 输出：`[3072] / expert`。
+
+$$
+\begin{aligned}\bar g_e&=\min(g_e,7)\\\bar u_e&=\operatorname{clip}(u_e,-7,7)\\z_e&=\bar g_e\odot\sigma(1.702\bar g_e)\odot(\bar u_e+1)\end{aligned}
+$$
+
+对 Gate 先做上界 min(g,7)，对 Up 做 clip(u,−7,7)，再计算 ḡ·sigmoid(1.702ḡ)·(ū+1)。这是专家内部的逐通道非线性门控，激活本身没有可训练权重；输出宽度仍为 3072。
+
+### 1 · 先截断两个分支
+
+$$
+\bar g=\min(g,c),\quad\bar u=\operatorname{clip}(u,-c,c),\quad c=7
+$$
+
+g 来自 Gate 投影，u 来自 Up 投影。Gate 只限制上界，负值不会被截到 −7；Up 同时限制上下界。先截断，再将截断后的 g 送入 sigmoid。
+
+### 2 · Gate 控制每个特征通道
+
+$$
+a=\bar g\odot\sigma(\alpha\bar g),\quad\alpha=1.702
+$$
+
+σ 是逐元素 sigmoid；α 调整 sigmoid 的斜率。a 是带符号的特征门控值，并非概率分布。这里的 Gate 分支位于单个专家内部，与产生 128 个选路分数的 Router 是两套计算。
+
+### 3 · 调制 Up 内容，再交给 Down
+
+$$
+z=a\odot(\bar u+\beta),\quad\beta=1
+$$
+
+Up 提供内容特征；+1 是配置中的常量 β，不是可训练 bias。⊙ 表示逐元素乘，输出仍为 3072 维。SwiGLU-OAI 自身没有权重，负责非线性门控；之后 Down 才把特征投回 6144 维。普通 SiLU(g)⊙u 不包含这里的 α=1.702、β=1 与截断。
+
+- **x / Û**：一个 token 的 Post-attn RMSNorm 输出，[6144]；逐 token 应用
+- **R / s / b_corr**：128 个 FP32 logits / sigmoid 路由分数 / 仅用于选择的 correction bias
+- **𝓔 / e / j**：每 token 选中的 4 个专家集合 / 集合内专家索引
+- **ŵ_e**：原 sigmoid 分数归一化再乘 2 得到的混合权重
+- **W1 / W3 / W2**：专家 Gate / Up / Down 逻辑矩阵；NVFP4 存储另见权重详情
+- **g / u / z**：Gate 投影 / Up 投影 / SwiGLU-OAI 激活特征，各 [3072]
+- **c / α / β**：截断阈值 7 / sigmoid 斜率 1.702 / Up 常量偏移 1
+- **σ / ⊙**：逐元素 sigmoid / 逐元素乘，不是跨专家归一化
+- **y_e / Y_routed**：单个路由专家输出 / 四个专家加权和，各 [6144]
+- **下标 s / Y_shared**：共享专家 / 无需 Top-4 与路由权重的共享输出
+
+[实现定位](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/model_executor/layers/fused_moe/activation.py#L381-L389)。
+
+
+## s-moe-down · Expert Down Projection
+
+各专家用独立 W2=[6144,3072] 把激活特征投回 hidden size。此处尚未与其他专家求和；后端可融合投影、加权和归并。
+
+输入：`[3072] / expert` → 输出：`[6144] / expert`。
+
+$$
+y_e=z_eW_{2,e}^{\top}\in\mathbb R^{6144},\quad W_{2,e}\in\mathbb R^{6144\times3072}
+$$
+
+各专家用独立 W2=[6144,3072] 把激活特征投回 hidden size。此处尚未与其他专家求和；后端可融合投影、加权和归并。
+
+- **x / Û**：一个 token 的 Post-attn RMSNorm 输出，[6144]；逐 token 应用
+- **R / s / b_corr**：128 个 FP32 logits / sigmoid 路由分数 / 仅用于选择的 correction bias
+- **𝓔 / e / j**：每 token 选中的 4 个专家集合 / 集合内专家索引
+- **ŵ_e**：原 sigmoid 分数归一化再乘 2 得到的混合权重
+- **W1 / W3 / W2**：专家 Gate / Up / Down 逻辑矩阵；NVFP4 存储另见权重详情
+- **g / u / z**：Gate 投影 / Up 投影 / SwiGLU-OAI 激活特征，各 [3072]
+- **c / α / β**：截断阈值 7 / sigmoid 斜率 1.702 / Up 常量偏移 1
+- **σ / ⊙**：逐元素 sigmoid / 逐元素乘，不是跨专家归一化
+- **y_e / Y_routed**：单个路由专家输出 / 四个专家加权和，各 [6144]
+- **下标 s / Y_shared**：共享专家 / 无需 Top-4 与路由权重的共享输出
+
+[实现定位](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L247-L267)。
+
+
+## s-moe-combine · Weighted Sum · 4 experts
+
+每个专家的 6144 维输出乘自己的路由权重，再沿 4 个专家求和。全局公式不规定 TP/EP buffer；PP=1 的 TP 归并可延迟到下一 norm。
+
+输入：`[4,6144] + [4]（逻辑）` → 输出：`[6144]`。
+
+$$
+Y_{routed}=\sum_{e\in\mathcal E}\hat w_e y_e\in\mathbb R^{6144}
+$$
+
+每个专家的 6144 维输出乘自己的路由权重，再沿 4 个专家求和。全局公式不规定 TP/EP buffer；PP=1 的 TP 归并可延迟到下一 norm。
+
+- **x / Û**：一个 token 的 Post-attn RMSNorm 输出，[6144]；逐 token 应用
+- **R / s / b_corr**：128 个 FP32 logits / sigmoid 路由分数 / 仅用于选择的 correction bias
+- **𝓔 / e / j**：每 token 选中的 4 个专家集合 / 集合内专家索引
+- **ŵ_e**：原 sigmoid 分数归一化再乘 2 得到的混合权重
+- **W1 / W3 / W2**：专家 Gate / Up / Down 逻辑矩阵；NVFP4 存储另见权重详情
+- **g / u / z**：Gate 投影 / Up 投影 / SwiGLU-OAI 激活特征，各 [3072]
+- **c / α / β**：截断阈值 7 / sigmoid 斜率 1.702 / Up 常量偏移 1
+- **σ / ⊙**：逐元素 sigmoid / 逐元素乘，不是跨专家归一化
+- **y_e / Y_routed**：单个路由专家输出 / 四个专家加权和，各 [6144]
+- **下标 s / Y_shared**：共享专家 / 无需 Top-4 与路由权重的共享输出
+
+[实现定位](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L247-L267)。
+
+
+## s-moe-sharedgateup · Shared Gate + Up
+
+共享专家使用自己的 Gate / Up 权重，同样从 6144 维投影到两路 3072 维。所有 token 都执行，无需 Top-4 ids。TP 下每 rank 可只持有 3072/TP 通道。
+
+输入：`[6144]` → 输出：`2 × [3072]（逻辑）`。
+
+$$
+g_s=xW_{gate,s}^{\top},\quad u_s=xW_{up,s}^{\top}\in\mathbb R^{3072}
+$$
+
+共享专家使用自己的 Gate / Up 权重，同样从 6144 维投影到两路 3072 维。所有 token 都执行，无需 Top-4 ids。TP 下每 rank 可只持有 3072/TP 通道。
+
+- **x / Û**：一个 token 的 Post-attn RMSNorm 输出，[6144]；逐 token 应用
+- **R / s / b_corr**：128 个 FP32 logits / sigmoid 路由分数 / 仅用于选择的 correction bias
+- **𝓔 / e / j**：每 token 选中的 4 个专家集合 / 集合内专家索引
+- **ŵ_e**：原 sigmoid 分数归一化再乘 2 得到的混合权重
+- **W1 / W3 / W2**：专家 Gate / Up / Down 逻辑矩阵；NVFP4 存储另见权重详情
+- **g / u / z**：Gate 投影 / Up 投影 / SwiGLU-OAI 激活特征，各 [3072]
+- **c / α / β**：截断阈值 7 / sigmoid 斜率 1.702 / Up 常量偏移 1
+- **σ / ⊙**：逐元素 sigmoid / 逐元素乘，不是跨专家归一化
+- **y_e / Y_routed**：单个路由专家输出 / 四个专家加权和，各 [6144]
+- **下标 s / Y_shared**：共享专家 / 无需 Top-4 与路由权重的共享输出
+
+[实现定位](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L236-L267)。
+
+
+## s-moe-sharedswiglu · SwiGLU-OAI · shared
+
+对 Gate 先做上界 min(g,7)，对 Up 做 clip(u,−7,7)，再计算 ḡ·sigmoid(1.702ḡ)·(ū+1)。这是专家内部的逐通道非线性门控，激活本身没有可训练权重；输出宽度仍为 3072。共享分支使用相同 c、α、β；TP 时按本地通道逐元素计算。
+
+输入：`2 × [3072]（逻辑）` → 输出：`[3072]（逻辑）`。
+
+$$
+\begin{aligned}\bar g_s&=\min(g_s,7),\quad\bar u_s=\operatorname{clip}(u_s,-7,7)\\z_s&=\bar g_s\odot\sigma(1.702\bar g_s)\odot(\bar u_s+1)\end{aligned}
+$$
+
+对 Gate 先做上界 min(g,7)，对 Up 做 clip(u,−7,7)，再计算 ḡ·sigmoid(1.702ḡ)·(ū+1)。这是专家内部的逐通道非线性门控，激活本身没有可训练权重；输出宽度仍为 3072。共享分支使用相同 c、α、β；TP 时按本地通道逐元素计算。
+
+### 1 · 先截断两个分支
+
+$$
+\bar g=\min(g,c),\quad\bar u=\operatorname{clip}(u,-c,c),\quad c=7
+$$
+
+g 来自 Gate 投影，u 来自 Up 投影。Gate 只限制上界，负值不会被截到 −7；Up 同时限制上下界。先截断，再将截断后的 g 送入 sigmoid。
+
+### 2 · Gate 控制每个特征通道
+
+$$
+a=\bar g\odot\sigma(\alpha\bar g),\quad\alpha=1.702
+$$
+
+σ 是逐元素 sigmoid；α 调整 sigmoid 的斜率。a 是带符号的特征门控值，并非概率分布。这里的 Gate 分支位于单个专家内部，与产生 128 个选路分数的 Router 是两套计算。
+
+### 3 · 调制 Up 内容，再交给 Down
+
+$$
+z=a\odot(\bar u+\beta),\quad\beta=1
+$$
+
+Up 提供内容特征；+1 是配置中的常量 β，不是可训练 bias。⊙ 表示逐元素乘，输出仍为 3072 维。SwiGLU-OAI 自身没有权重，负责非线性门控；之后 Down 才把特征投回 6144 维。普通 SiLU(g)⊙u 不包含这里的 α=1.702、β=1 与截断。
+
+- **x / Û**：一个 token 的 Post-attn RMSNorm 输出，[6144]；逐 token 应用
+- **R / s / b_corr**：128 个 FP32 logits / sigmoid 路由分数 / 仅用于选择的 correction bias
+- **𝓔 / e / j**：每 token 选中的 4 个专家集合 / 集合内专家索引
+- **ŵ_e**：原 sigmoid 分数归一化再乘 2 得到的混合权重
+- **W1 / W3 / W2**：专家 Gate / Up / Down 逻辑矩阵；NVFP4 存储另见权重详情
+- **g / u / z**：Gate 投影 / Up 投影 / SwiGLU-OAI 激活特征，各 [3072]
+- **c / α / β**：截断阈值 7 / sigmoid 斜率 1.702 / Up 常量偏移 1
+- **σ / ⊙**：逐元素 sigmoid / 逐元素乘，不是跨专家归一化
+- **y_e / Y_routed**：单个路由专家输出 / 四个专家加权和，各 [6144]
+- **下标 s / Y_shared**：共享专家 / 无需 Top-4 与路由权重的共享输出
+
+[实现定位](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/model_executor/layers/activation.py#L240-L244)。
+
+
+## s-moe-shareddown · Shared Down Projection
+
+共享 Down 将 3072 维投回 6144 维；不乘 Top-4 路由权重，随后与 Y_routed 相加。共享 MLP 以 reduce_results=False 交给 FusedMoEFactory，图中是全局逻辑输出。
+
+输入：`[3072]（逻辑）` → 输出：`[6144]`。
+
+$$
+Y_{shared}=z_sW_{down,s}^{\top}\in\mathbb R^{6144}
+$$
+
+共享 Down 将 3072 维投回 6144 维；不乘 Top-4 路由权重，随后与 Y_routed 相加。共享 MLP 以 reduce_results=False 交给 FusedMoEFactory，图中是全局逻辑输出。
+
+- **x / Û**：一个 token 的 Post-attn RMSNorm 输出，[6144]；逐 token 应用
+- **R / s / b_corr**：128 个 FP32 logits / sigmoid 路由分数 / 仅用于选择的 correction bias
+- **𝓔 / e / j**：每 token 选中的 4 个专家集合 / 集合内专家索引
+- **ŵ_e**：原 sigmoid 分数归一化再乘 2 得到的混合权重
+- **W1 / W3 / W2**：专家 Gate / Up / Down 逻辑矩阵；NVFP4 存储另见权重详情
+- **g / u / z**：Gate 投影 / Up 投影 / SwiGLU-OAI 激活特征，各 [3072]
+- **c / α / β**：截断阈值 7 / sigmoid 斜率 1.702 / Up 常量偏移 1
+- **σ / ⊙**：逐元素 sigmoid / 逐元素乘，不是跨专家归一化
+- **y_e / Y_routed**：单个路由专家输出 / 四个专家加权和，各 [6144]
+- **下标 s / Y_shared**：共享专家 / 无需 Top-4 与路由权重的共享输出
+
+[实现定位](https://github.com/vllm-project/vllm/blob/ced6857afa0ea7b2e3f0846a62e1394e90f15607/vllm/models/minimax_m3/nvidia/model.py#L236-L267)。

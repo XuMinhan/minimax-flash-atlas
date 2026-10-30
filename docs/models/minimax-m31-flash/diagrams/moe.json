@@ -2,165 +2,318 @@
   "schema_version": 1,
   "diagram_type": "dataflow",
   "meta": {
-    "title": "MoE：Top-4 路由与共享专家并行",
+    "title": "MoE：Top-4、SwiGLU-OAI 与共享专家",
     "locale": "zh-CN",
-    "output": ".scratch/add-minimax-m31-flash/artifacts/r02/archify/moe.html",
-    "quality_profile": "showcase"
+    "output": ".scratch/add-minimax-m31-flash/artifacts/r03/moe.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/vllm-project/vllm.git",
+      "revision": "ced6857afa0ea7b2e3f0846a62e1394e90f15607"
+    }
   },
   "stages": [
     {
-      "label": "归一化输入"
+      "label": "输入 / Router"
     },
     {
-      "label": "路由分数"
+      "label": "选路与投影"
     },
     {
-      "label": "选择与权重"
+      "label": "权重 / 非线性门控"
     },
     {
-      "label": "专家计算"
+      "label": "Down 投影"
     },
     {
-      "label": "合并输出"
+      "label": "输出归并"
     }
   ],
   "nodes": [
     {
       "id": "in",
       "type": "backend",
-      "label": "FFN 输入",
-      "sublabel": "[B,S,6144]",
+      "label": "输入 x = Û",
+      "sublabel": "每 token [6144]",
       "stage": 0,
-      "row": 1
+      "row": 2,
+      "sources": [
+        {
+          "path": "vllm/models/minimax_m3/nvidia/model.py",
+          "line": 275,
+          "end_line": 285
+        }
+      ]
     },
     {
       "id": "router",
       "type": "backend",
       "label": "FP32 Router",
       "sublabel": "128 logits",
-      "stage": 1,
-      "row": 0
+      "stage": 0,
+      "row": 0,
+      "sources": [
+        {
+          "path": "vllm/models/minimax_m3/nvidia/model.py",
+          "line": 225,
+          "end_line": 234
+        }
+      ]
     },
     {
       "id": "choice",
       "type": "backend",
       "label": "Sigmoid / Top-4",
-      "sublabel": "保留原分数与 ids",
-      "stage": 2,
-      "row": 0
+      "sublabel": "bias 仅用于选路",
+      "stage": 1,
+      "row": 0,
+      "sources": [
+        {
+          "path": "vllm/model_executor/layers/fused_moe/router/fused_topk_bias_router.py",
+          "line": 283,
+          "end_line": 295
+        }
+      ]
     },
     {
       "id": "weights",
       "type": "backend",
-      "label": "重归一化 × 2",
-      "sublabel": "使用未加 bias 分数",
+      "label": "原分数归一化 ×2",
+      "sublabel": "ŵe · 四项之和=2",
       "stage": 2,
-      "row": 2
+      "row": 0,
+      "sources": [
+        {
+          "path": "vllm/model_executor/layers/fused_moe/router/fused_topk_bias_router.py",
+          "line": 329,
+          "end_line": 342
+        }
+      ]
     },
     {
-      "id": "routed",
+      "id": "routed-gateup",
       "type": "backend",
-      "label": "4 路由专家",
-      "sublabel": "NVFP4 packed",
-      "stage": 3,
-      "row": 0
+      "label": "4 专家 Gate / Up",
+      "sublabel": "W1 / W3 → 两路3072",
+      "stage": 1,
+      "row": 1,
+      "sources": [
+        {
+          "path": "vllm/models/minimax_m3/nvidia/model.py",
+          "line": 247,
+          "end_line": 267
+        }
+      ]
     },
     {
-      "id": "shared",
+      "id": "routed-swiglu",
       "type": "backend",
-      "label": "1 共享专家",
-      "sublabel": "始终参与",
+      "label": "SwiGLU-OAI",
+      "sublabel": "c=7 · α=1.702 · β=1",
+      "stage": 2,
+      "row": 1,
+      "sources": [
+        {
+          "path": "vllm/model_executor/layers/activation.py",
+          "line": 240,
+          "end_line": 244
+        }
+      ]
+    },
+    {
+      "id": "routed-down",
+      "type": "backend",
+      "label": "4 专家 Down",
+      "sublabel": "W2 · 3072 → 6144",
       "stage": 3,
-      "row": 2
+      "row": 1,
+      "sources": [
+        {
+          "path": "vllm/models/minimax_m3/nvidia/model.py",
+          "line": 247,
+          "end_line": 267
+        }
+      ]
+    },
+    {
+      "id": "shared-gateup",
+      "type": "backend",
+      "label": "共享 Gate / Up",
+      "sublabel": "始终执行 · 两路3072",
+      "stage": 1,
+      "row": 3,
+      "sources": [
+        {
+          "path": "vllm/models/minimax_m3/nvidia/model.py",
+          "line": 236,
+          "end_line": 245
+        }
+      ]
+    },
+    {
+      "id": "shared-swiglu",
+      "type": "backend",
+      "label": "SwiGLU-OAI",
+      "sublabel": "同样的 c / α / β",
+      "stage": 2,
+      "row": 3,
+      "sources": [
+        {
+          "path": "vllm/model_executor/layers/activation.py",
+          "line": 240,
+          "end_line": 244
+        }
+      ]
+    },
+    {
+      "id": "shared-down",
+      "type": "backend",
+      "label": "共享 Down",
+      "sublabel": "3072 → 6144",
+      "stage": 3,
+      "row": 3,
+      "sources": [
+        {
+          "path": "vllm/models/minimax_m3/nvidia/model.py",
+          "line": 184,
+          "end_line": 189
+        }
+      ]
+    },
+    {
+      "id": "weighted",
+      "type": "backend",
+      "label": "4 专家加权求和",
+      "sublabel": "Yrouted = Σ ŵe ye",
+      "stage": 4,
+      "row": 0,
+      "sources": [
+        {
+          "path": "vllm/models/minimax_m3/nvidia/model.py",
+          "line": 247,
+          "end_line": 285
+        }
+      ]
     },
     {
       "id": "sum",
       "type": "backend",
       "label": "Routed + Shared",
-      "sublabel": "[B,S,6144]",
+      "sublabel": "Ymoe [6144]",
       "stage": 4,
-      "row": 1
+      "row": 2,
+      "sources": [
+        {
+          "path": "vllm/models/minimax_m3/nvidia/model.py",
+          "line": 247,
+          "end_line": 285
+        }
+      ]
     }
   ],
   "flows": [
     {
-      "id": "moe-edge-0",
+      "id": "moe-detail-edge-0",
       "from": "in",
       "to": "router",
-      "label": "hidden"
+      "label": "x"
     },
     {
-      "id": "moe-edge-1",
+      "id": "moe-detail-edge-1",
       "from": "router",
       "to": "choice",
-      "label": "logits"
+      "label": "R"
     },
     {
-      "id": "moe-edge-2",
+      "id": "moe-detail-edge-2",
       "from": "choice",
       "to": "weights",
-      "label": "ids + 原始 scores"
+      "label": "ids + 原分数"
     },
     {
-      "id": "moe-edge-3",
+      "id": "moe-detail-edge-3",
       "from": "choice",
-      "to": "routed",
-      "label": "专家选择"
+      "to": "routed-gateup",
+      "label": "选中 ids"
     },
     {
-      "id": "moe-edge-4",
+      "id": "moe-detail-edge-4",
+      "from": "in",
+      "to": "routed-gateup",
+      "label": "同一 x"
+    },
+    {
+      "id": "moe-detail-edge-5",
+      "from": "in",
+      "to": "shared-gateup",
+      "label": "同一 x"
+    },
+    {
+      "id": "moe-detail-edge-6",
+      "from": "routed-gateup",
+      "to": "routed-swiglu",
+      "label": "ge / ue"
+    },
+    {
+      "id": "moe-detail-edge-7",
+      "from": "routed-swiglu",
+      "to": "routed-down",
+      "label": "ze [3072]"
+    },
+    {
+      "id": "moe-detail-edge-8",
+      "from": "routed-down",
+      "to": "weighted",
+      "label": "4 个 ye"
+    },
+    {
+      "id": "moe-detail-edge-9",
       "from": "weights",
-      "to": "routed",
-      "label": "混合权重"
+      "to": "weighted",
+      "label": "ŵe"
     },
     {
-      "id": "moe-edge-5",
-      "from": "in",
-      "to": "routed",
-      "label": "hidden 输入",
-      "route": "top-channel",
-      "fromSide": "top",
-      "toSide": "top"
+      "id": "moe-detail-edge-10",
+      "from": "shared-gateup",
+      "to": "shared-swiglu",
+      "label": "gs / us"
     },
     {
-      "id": "moe-edge-6",
-      "from": "in",
-      "to": "shared",
-      "label": "同一输入",
-      "route": "bottom-channel",
-      "fromSide": "bottom",
-      "toSide": "bottom"
+      "id": "moe-detail-edge-11",
+      "from": "shared-swiglu",
+      "to": "shared-down",
+      "label": "zs [3072]"
     },
     {
-      "id": "moe-edge-7",
-      "from": "routed",
+      "id": "moe-detail-edge-12",
+      "from": "weighted",
       "to": "sum",
-      "label": "加权输出"
+      "label": "Yrouted"
     },
     {
-      "id": "moe-edge-8",
-      "from": "shared",
+      "id": "moe-detail-edge-13",
+      "from": "shared-down",
       "to": "sum",
-      "label": "共享输出"
+      "label": "Yshared"
     }
   ],
   "cards": [
     {
       "dot": "emerald",
-      "title": "阅读边界",
+      "title": "SwiGLU-OAI：两个投影之间的非线性门控",
       "items": [
-        "128 个 routed experts，每 token 激活 4 个；另有 1 个 shared expert。每个专家中间宽度为 3072。",
-        "实际 FusedMoEFactory 接收 shared_experts；独立分支与 Add 为数学分解，不假定 Python 层各有一次 forward。",
-        "选择节点保留原始 s=σ(logits)；Top-4 只按 s+bias 选择 ids。重归一化节点同时消费 ids 与未加 bias 的 s，gather 后归一化乘2。PP=1 输出归并可延迟到下一 norm。"
+        "每个专家：g=xWgateᵀ、u=xWupᵀ；ḡ=min(g,7)，ū=clip(u,−7,7)。Gate 只截上界，Up 截双边。",
+        "z=ḡ⊙sigmoid(1.702ḡ)⊙(ū+1)；再做 y=zWdownᵀ。激活没有可训练权重，β=1 为常量，不是额外线性 bias。",
+        "Router 的 sigmoid 用来选专家；SwiGLU 的 sigmoid 用来调制专家内部的 3072 个特征通道。共享专家也执行相同激活，但没有 Top-4 权重。"
       ]
     },
     {
       "dot": "slate",
-      "title": "固定证据",
+      "title": "逻辑数学与运行时边界",
       "items": [
-        "HF 262ae6830934f3512211081b8a3f16425b93a239 · Flash 官方配置",
-        "vLLM ced6857afa0ea7b2e3f0846a62e1394e90f15607 · 源码追踪见站点详情",
-        "这是模块级补充图；完整算子、权重输入与数学拆解保留在 Decoder 原生交互图中。"
+        "128 个 routed experts 每 token 选 4 个，另有 1 个 shared expert；每专家逻辑宽度 3072，输入/输出 6144。路由专家权重为 NVFP4 packed，存储形状不等于逻辑矩阵形状。",
+        "按 s+bias 选 ids；只把原始 s 的选中项归一化乘2，得到混合权重。四个 Down 输出先加权求和，再加共享输出。",
+        "这些节点是数学拆解；实际 FusedMoEFactory 接收 shared_experts，后端可能融合投影、激活与归并，不保证独立 kernel / buffer。PP=1 的 TP 归并可延迟至下一 norm。",
+        "Flash 官方配置 HF 262ae6830934f3512211081b8a3f16425b93a239；vLLM 固定源码见节点链接。完整权重与逐步公式见 Decoder 算子详情。"
       ]
     }
   ]

@@ -59,3 +59,15 @@ export const NEXT_BY_ID: Record<string,string> = {
   "d-input":"Gemma RMSNorm","d-position":"Partial RoPE (Q/K)","d-attnmeta":"Apply Causal / Pad Bounds","d-slots":"Paged KV Cache","d-norm":"QKV Projection","d-qkv":"Split Q / K / V","d-split":"Q RMSNorm · K RMSNorm · Paged KV Cache","d-qnorm":"Partial RoPE (Q)","d-knorm":"Partial RoPE (K)","d-ropeq":"Q × Kᵀ","d-ropek":"Paged KV Cache","d-cache":"Q × Kᵀ · P × V","d-qk":"Scale 1/√128","d-scale":"Apply Causal / Pad Bounds","d-mask":"Softmax","d-softmax":"P × V","d-pv":"O Projection","d-oproj":"Attention Residual Merge","d-add1":"Post-attn Gemma RMSNorm","d-postnorm":"Gate + Up Projection","d-gateup":"Split Gate / Up","d-gatesplit":"SwiGLU-OAI","d-swiglu":"Down Projection","d-down":"Decoder Layer Residual Merge","d-add2":"下一 decoder layer / Final Norm",
   "s-input":"Gemma RMSNorm","s-position":"Partial RoPE","s-attnmeta":"Indexer 与 Sparse Attention mask","s-slots":"Paged KV Cache","s-norm":"QKV + Index Projection","s-packed":"Split 5 outputs","s-split":"Index Q/K Gemma RMSNorm + RoPE · Main Q/K Gemma RMSNorm · Paged KV Cache","s-idxnorm":"Index Q query · Index K Cache","s-idxcache":"Index Q × cached Kᵀ","s-idxscore":"Mask Future Index Keys","s-idxmask":"Block Max","s-blockmax":"Top-K_block Blocks","s-topk":"Q × paged Kᵀ · Top-K_block","s-mainnorm":"Partial RoPE","s-rope":"Paged KV Cache · Q × paged Kᵀ · Top-K_block","s-cache":"Q × paged Kᵀ · Top-K_block · P × paged V","s-qk":"Scale 1/√Dₕ","s-scale":"Apply Token Causal / Pad Mask","s-mask":"Softmax","s-softmax":"P × paged V · same Top-K_block","s-pv":"O Projection","s-oproj":"Attention Residual Merge","s-addattn":"Post-attn Gemma RMSNorm","s-postnorm":"FP32 Router Logits · Fused Top-4 Routing + Experts · Shared Expert","s-router":"router_logits → Fused Top-4 Routing + Experts","s-experts":"Add Routed + Shared","s-shared":"Add Routed + Shared","s-sum":"Decoder Layer Residual Merge","s-addout":"下一 decoder layer / Final Norm",
 };
+
+Object.assign(NEXT_BY_ID,{
+ "s-moe-choice":"Expert Gate + Up（ids）· Renormalize × 2（ids + 原始 scores）",
+ "s-moe-weights":"Weighted Sum · 4 experts",
+ "s-moe-gateup":"SwiGLU-OAI · per expert",
+ "s-moe-swiglu":"Expert Down Projection",
+ "s-moe-down":"Weighted Sum · 4 experts",
+ "s-moe-combine":"Add Routed + Shared",
+ "s-moe-sharedgateup":"SwiGLU-OAI · shared",
+ "s-moe-sharedswiglu":"Shared Down Projection",
+ "s-moe-shareddown":"Add Routed + Shared",
+});

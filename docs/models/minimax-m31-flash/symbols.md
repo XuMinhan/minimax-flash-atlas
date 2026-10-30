@@ -76,3 +76,16 @@ Content-Status: draft
 | 8 | 8 | 1 | 1 | 1 | 1536 | 8 |
 
 例如已有1024个token的chunked prefill当前S=32、总T=1056；后续普通decode当前S=1、总T=1057。TP=8时current K为[B,1,S,128]，历史K的逻辑视图为[B,1,T,128]，不能把Norm输入的S换成T。通用Triton主cache物理布局为[Npages,1,128,256]，K/V共用末维前/后128；它不是两套独立分配的[Npages,128,1,128]张量。Index side cache独立分配且只有K。
+
+## MoE 专家内部符号
+
+- **x / Û**：一个 token 的 Post-attn RMSNorm 输出，[6144]；逐 token 应用
+- **R / s / b_corr**：128 个 FP32 logits / sigmoid 路由分数 / 仅用于选择的 correction bias
+- **𝓔 / e / j**：每 token 选中的 4 个专家集合 / 集合内专家索引
+- **ŵ_e**：原 sigmoid 分数归一化再乘 2 得到的混合权重
+- **W1 / W3 / W2**：专家 Gate / Up / Down 逻辑矩阵；NVFP4 存储另见权重详情
+- **g / u / z**：Gate 投影 / Up 投影 / SwiGLU-OAI 激活特征，各 [3072]
+- **c / α / β**：截断阈值 7 / sigmoid 斜率 1.702 / Up 常量偏移 1
+- **σ / ⊙**：逐元素 sigmoid / 逐元素乘，不是跨专家归一化
+- **y_e / Y_routed**：单个路由专家输出 / 四个专家加权和，各 [6144]
+- **下标 s / Y_shared**：共享专家 / 无需 Top-4 与路由权重的共享输出

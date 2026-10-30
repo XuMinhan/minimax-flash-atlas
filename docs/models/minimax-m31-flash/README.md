@@ -9,7 +9,7 @@ Content-Status: draft
 本模块基于 Model Atlas 完整仓库源码适配，保留其原生图元、自动路由、展开图、hover/pin 详情、输入绑定与公式解释。Flash 是默认模型，原 MiniMax-M3 模块保留用于对照。
 
 - [整体架构](architecture.md)
-- [45 个算子公式及推导](formulas.md)
+- [54 个算子公式及推导](formulas.md)
 - [符号与实际配置](symbols.md)
 - [实现调用链及融合边界](implementation.md)
 - [逐节点固定来源](evidence.md)

@@ -40,6 +40,10 @@ moe_layer_freq 与 sparse_attention_freq 是独立配置。后者 60 项全为 1
 
 Router 使用 FP32 logits。sigmoid 分数加 correction bias 只用于选择 Top-4；混合权重从未加 bias 的分数 gather，归一化后乘 2。共享专家始终执行。三个专家矩阵按 w1=gate、w3=up、w2=down 装载。FFN 激活为 gate 单边裁剪、up 双边裁剪，再 g·sigmoid(1.702g)·(u+1)。
 
+每个入选专家独立执行 Gate/Up 两路投影（6144→3072）、SwiGLU-OAI 非线性门控、Down（3072→6144），然后四个专家输出分别乘路由权重求和。SwiGLU-OAI 先计算 ḡ=min(g,7)、ū=clip(u,−7,7)，再计算 z=ḡ⊙σ(1.702ḡ)⊙(ū+1)；Gate 只截上界。α 控制 sigmoid 斜率，β=1 是常量而非可训练 bias。共享专家使用独立权重与同一激活，不参与 Top-4，不乘路由混合权重。
+
+新版原生展开图把这些步骤分别设为可点击节点。公式中的形状是单 token 全局逻辑形状；TP/EP 本地布局与融合方式由后端决定。NVFP4 packed 的 U8 存储形状不等于上述逻辑矩阵形状。激活内部的 sigmoid 调制特征通道，Router 的 sigmoid 则用于专家选路，二者不能混同。
+
 本地实现将 shared_experts 交给 FusedMoEFactory，图中的独立共享分支和 Add 是数学表达，不宣称 Python 单独调用或分配相同中间张量。
 
 ## 视觉

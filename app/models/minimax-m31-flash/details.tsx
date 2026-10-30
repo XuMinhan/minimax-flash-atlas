@@ -106,10 +106,11 @@ function stageOverview(type:LayerType,stage:Exclude<ExpandedStage,null>):StageOv
   };
   return {
     kicker:"SPARSE FFN · L3–L59",title:"Top-4 MoE + Shared Expert",summary:"每个 token 进入 4 个路由专家，同时经过 1 个共享专家。",
-    flow:"路由选择：Û → FP32 Router → router_logits\n路由专家：Û + router_logits → Fused Top-4 Routing + Experts → Y_routed\n共享专家：Û → Shared Expert → Y_shared\n最终合并：Y_routed + Y_shared → Add → Y_moe",
-    formula:"Y_routed=Σₑ ŵₑEₑ(Û)\nY_shared=E_shared(Û)\nY_moe=Y_routed+Y_shared",
+    flow:"路由选择：Û → FP32 Router → router_logits\n路由专家：x + Top-4 ids → Gate/Up → SwiGLU-OAI → Down → 加权求和 → Y_routed\n共享专家：x → Gate/Up → SwiGLU-OAI → Down → Y_shared\n最终合并：Y_routed + Y_shared → Add → Y_moe",
+    formula:"g_e=xW1,eᵀ · u_e=xW3,eᵀ\nḡ_e=min(g_e,7) · ū_e=clip(u_e,−7,7)\nz_e=ḡ_e⊙σ(1.702ḡ_e)⊙(ū_e+1)\ny_e=z_eW2,eᵀ\nY_routed=Σₑ ŵₑy_e\nY_moe=Y_routed+Y_shared",
+    formulaNote:"x=Û 表示单个 token，[6144]；g/u/z 各 [3072]。共享专家执行相同激活。这里是全局逻辑数学，实际 FusedMoE 可融合中间步骤，TP/EP 分片由后端决定。",
     notes:["Router 在 Python 层只产生 [B,S,128] 的 router_logits。","expert ids 与 router weights 由 FusedMoE 内部计算；Shared Expert 不经过 Top-K。"],
-    parameters:[["E","128","routed experts"],["K","4","experts / token"],["E_shared","1","shared expert"],["H_expert","3072","expert width"]],
+    parameters:[["E","128","routed experts"],["K","4","experts / token"],["E_shared","1","shared expert"],["H_expert","3072","expert width"],["c","7","swiglu_limit"],["α","1.702","swiglu_alpha"],["β","1","swiglu_beta"]],
   };
 }
 
@@ -125,7 +126,7 @@ export function DetailPanel({node,tab,setTab,pinned,onClear,expanded,layerType}:
   const formulaSteps=FORMULA_STEPS_BY_ID[node.id];
   return <aside className="detail-panel"><header className="detail-header"><div><span>{node.kicker}</span><h2>{node.title}</h2></div>{pinned?<button className="unpin-button" aria-label="取消固定" title="取消固定" onClick={onClear}>×</button>:<i className={`kind-dot op-${node.kind}`}/>}<p>{node.summary}</p><code>{node.runtime}</code></header><div className="detail-tabs">{tabs.map(([id,label])=><button key={id} className={tab===id?"active":""} onClick={()=>setTab(id)}>{label}</button>)}</div><div key={tab} className={`detail-content detail-${tab}`}>
     {tab==="io"&&<IoView node={node}/>}
-    {tab==="formula"&&<div className="formula-view"><span>作用</span><div className="formula-purpose">{node.summary}</div><span>实际公式</span><LatexFormula node={node}/>{formulaSteps?<div className="formula-steps">{formulaSteps.map(step=><article className="formula-step" key={step.title}><header>{step.title}</header><LatexExpression formula={step.formula} label={`${step.title} 公式`} className="formula-step-math"/><p>{step.explanation}</p></article>)}</div>:<><div className="formula-implementation"><b>一句话解释</b><p>{node.formulaNote??FORMULA_NOTE[node.kind]}</p></div><div className="formula-terms">{formulaTerms(node).map(([symbol,meaning])=><span key={symbol}><b>{symbol}</b>{meaning}</span>)}</div></>}</div>}
+    {tab==="formula"&&<div className="formula-view"><span>作用</span><div className="formula-purpose">{node.summary}</div><span>实际公式</span><LatexFormula node={node}/>{formulaSteps?<div className="formula-steps">{formulaSteps.map(step=><article className="formula-step" key={step.title}><header>{step.title}</header><LatexExpression formula={step.formula} label={`${step.title} 公式`} className="formula-step-math"/><p>{step.explanation}</p></article>)}</div>:<><div className="formula-implementation"><b>一句话解释</b><p>{node.formulaNote??FORMULA_NOTE[node.kind]}</p></div><div className="formula-terms">{formulaTerms(node).map(([symbol,meaning])=><span key={symbol}><b>{symbol}</b>{meaning}</span>)}</div></>}{formulaSteps&&<div className="formula-terms">{formulaTerms(node).map(([symbol,meaning])=><span key={symbol}><b>{symbol}</b>{meaning}</span>)}</div>}</div>}
     {tab==="code"&&<CodeView node={node}/>}
     </div><footer>{node.sourceUrl.includes("huggingface.co/")?`HF @ ${HF_REVISION.slice(0,7)} · configuration evidence`:`vLLM @ ${VLLM_COMMIT.slice(0,7)} · official safetensors`}</footer></aside>;
 }

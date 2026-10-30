@@ -1,3 +1,4 @@
+import {MoEDiagram} from "./moe-diagram";
 import type { OpNode, Weight } from "../types";
 import type { LayerType, ExpandedStage } from "./types";
 import type { GraphEdge, GraphAlignment } from "../../graph/types";
@@ -27,21 +28,7 @@ function StageZoom({type,stage,g,active,onHover,onLeave,onSelect,onClose}:{type:
       <Tensor name="Û" shape="[B,S,H]" graphId="mlp-uhat"/><Tensor name="mlp.gate_proj.weight⁽ʳ⁾" shape="[H_dense/TP,H]" role="weight" graphId="mlp-wgate"/><N id="gateup" graphId="mlp-gateup"/><Tensor name="mlp.up_proj.weight⁽ʳ⁾" shape="[H_dense/TP,H]" role="weight" graphId="mlp-wup"/><Tensor name="packed gate_up⁽ʳ⁾" shape="[B,S,2H_dense/TP]" graphId="mlp-packed"/><N id="gatesplit" graphId="mlp-split"/><Tensor name="G⁽ʳ⁾" shape="[B,S,H_dense/TP]" graphId="mlp-gate"/><Tensor name="U⁽ʳ⁾" shape="[B,S,H_dense/TP]" graphId="mlp-up"/><button type="button" className="mini-math activation-step" data-graph-id="mlp-gate-act" aria-label="Gate 分支：先对 G⁽ʳ⁾ 做上界截断，再计算门控激活" aria-pressed={active===g.swiglu.id} onPointerDown={()=>onSelect(g.swiglu)} onClick={event=>{if(event.detail===0)onSelect(g.swiglu)}} onMouseEnter={()=>onHover(g.swiglu)} onMouseLeave={onLeave}><b>min(G⁽ʳ⁾, C) · σ(α·min(G⁽ʳ⁾, C))</b></button><button type="button" className="mini-math activation-step" data-graph-id="mlp-up-act" aria-label="Up 分支：对 U⁽ʳ⁾ 做双边截断后加 beta" aria-pressed={active===g.swiglu.id} onPointerDown={()=>onSelect(g.swiglu)} onClick={event=>{if(event.detail===0)onSelect(g.swiglu)}} onMouseEnter={()=>onHover(g.swiglu)} onMouseLeave={onLeave}><b>clip(U⁽ʳ⁾, −C, C) + β</b></button><button className="multiply-circle" data-graph-id="mlp-mul" aria-label="两个分支逐元素相乘" title="逐元素相乘" aria-pressed={active===g.swiglu.id} onPointerDown={()=>onSelect(g.swiglu)} onClick={event=>{if(event.detail===0)onSelect(g.swiglu)}} onMouseEnter={()=>onHover(g.swiglu)} onMouseLeave={onLeave}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.25 4.25 11.75 11.75M11.75 4.25 4.25 11.75"/></svg></button><Tensor name="Z⁽ʳ⁾" shape="[B,S,H_dense/TP]" graphId="mlp-activated"/><N id="down" graphId="mlp-down"/><Tensor name="mlp.down_proj.weight⁽ʳ⁾" shape="[H,H_dense/TP]" role="weight" graphId="mlp-wdown"/><Tensor name="Yffn" shape="[B,S,H]" graphId="mlp-y"/>
     </GraphSurface></GraphPan></section>;
   }
-  if(stage==="ffn"){
-    const edges:GraphEdge[]=[
-      {from:"moe-u",to:"moe-router",fromPort:"bottom-left",approach:28},{from:"moe-wrouter",to:"moe-router",fromPort:"right",toPort:"left"},{from:"moe-router",to:"moe-router-logits"},{from:"moe-u",to:"moe-experts"},{from:"moe-router-logits",to:"moe-experts",toPort:"top-left",approach:28},{from:"moe-wexperts",to:"moe-experts",fromPort:"right",toPort:"left"},{from:"moe-experts",to:"moe-routed"},{from:"moe-u",to:"moe-shared",fromPort:"bottom-right",toPort:"top",approach:28},{from:"moe-wshared",to:"moe-shared",fromPort:"left",toPort:"right"},{from:"moe-shared",to:"moe-shared-out"},{from:"moe-routed",to:"moe-sum",toPort:"top-left",approach:24},{from:"moe-shared-out",to:"moe-sum",toPort:"top-right",approach:24},{from:"moe-sum",to:"moe-y"},
-    ];
-    return <section className="stage-zoom lesson-zoom"><header><span>TOP-4 MOE + SHARED EXPERT · L3–59</span><button onClick={onClose}>收起 ×</button></header><GraphPan><GraphSurface className="moe-node-graph" edges={edges}>
-      <Tensor name="Û" shape="[B,S,H]" graphId="moe-u"/>
-      <Tensor name="router gate weight" shape="[E,H]" role="weight" graphId="moe-wrouter"/><N id="router" graphId="moe-router"/>
-      <Tensor name="router logits" shape="[B,S,E]" graphId="moe-router-logits"/>
-      <Tensor name="routed expert weights · correction bias" shape="E × expert weights · [E]" role="weight" graphId="moe-wexperts"/><N id="experts" graphId="moe-experts"/>
-      <Tensor name="weighted routed output" shape="[B,S,H]" graphId="moe-routed"/>
-      <N id="shared" graphId="moe-shared"/><Tensor name="shared expert weights ×3" shape="gate / up / down" role="weight" graphId="moe-wshared"/>
-      <Tensor name="shared output" shape="[B,S,H]" graphId="moe-shared-out"/>
-      <N id="sum" graphId="moe-sum"/><Tensor name="Ymoe" shape="[B,S,H]" graphId="moe-y"/>
-    </GraphSurface></GraphPan></section>;
-  }
+  if(stage==="ffn")return <MoEDiagram g={g} active={active} onHover={onHover} onLeave={onLeave} onSelect={onSelect} onClose={onClose}/>;
   const dense=false;
   const ids=dense?{project:"qkv",split:"split",qnorm:"qnorm",knorm:"knorm",ropeq:"ropeq",ropek:"ropek"}:{project:"packed",split:"split",qnorm:"mainnorm",knorm:"mainnorm",ropeq:"rope",ropek:"rope"};
   const edges:GraphEdge[]=[

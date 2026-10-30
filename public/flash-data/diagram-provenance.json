@@ -48,8 +48,8 @@
     "visualReview": "pending"
   },
   "moe": {
-    "sha256": "2e2ba93224fc0d98e0af164642d695c95675a1ded24212520106632ddbe13a90",
-    "bytes": 834592,
+    "sha256": "09f9aa28888d522ec4b7589aff1daf9d4bcda78a34b1212df3f2b45a1b403589",
+    "bytes": 847879,
     "gates": {
       "validate": "pass",
       "deliver": "pass",
